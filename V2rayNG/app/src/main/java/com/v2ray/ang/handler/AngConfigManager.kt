@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.text.TextUtils
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.core.CoreConfigManager
+import com.v2ray.ang.dto.BatchImportResult
 import com.v2ray.ang.dto.SubscriptionUpdateResult
 import com.v2ray.ang.dto.UrlContentRequest
 import com.v2ray.ang.dto.entities.ProfileItem
@@ -29,6 +30,7 @@ import com.v2ray.ang.util.Utils
 import java.net.URI
 
 object AngConfigManager {
+    private val subscriptionImportLock = Any()
 
     private data class ParsedProfile(
         val profile: ProfileItem,
@@ -177,9 +179,9 @@ object AngConfigManager {
      * @param server The server string.
      * @param subid The subscription ID.
      * @param append Whether to append the configurations.
-     * @return A pair containing the number of configurations and subscriptions imported.
+     * @return Imported profiles, saved subscription IDs, and initial update outcomes.
      */
-    fun importBatchConfig(server: String?, subid: String, append: Boolean): Pair<Int, Int> {
+    fun importBatchConfig(server: String?, subid: String, append: Boolean): BatchImportResult {
         return try {
             var count = parseBatchConfig(Utils.decode(server), subid, append)
             if (count <= 0) {
@@ -189,46 +191,34 @@ object AngConfigManager {
                 count = parseCustomConfigServer(server, subid, append)
             }
 
-            var countSub = parseBatchSubscription(server)
-            if (countSub <= 0) {
-                countSub = parseBatchSubscription(Utils.decode(server))
-            }
-            if (countSub > 0) {
-                updateConfigViaSubAll()
-            }
-
-            count to countSub
-        } catch (e: ProfileStorageException) {
-            LogUtil.e(AppConfig.TAG, "Failed to store imported profiles", e)
-            0 to 0
-        }
-    }
-
-    /**
-     * Parses a batch of subscriptions.
-     *
-     * @param servers The servers string.
-     * @return The number of subscriptions parsed.
-     */
-    private fun parseBatchSubscription(servers: String?): Int {
-        try {
-            if (servers == null) {
-                return 0
-            }
-
-            var count = 0
-            servers.lines()
+            val urls = server?.lines().orEmpty().filter { Utils.isValidSubUrl(it) }
+                .ifEmpty { Utils.decode(server).lines().filter { Utils.isValidSubUrl(it) } }
                 .distinct()
-                .forEach { str ->
-                    if (Utils.isValidSubUrl(str)) {
-                        count += importUrlAsSubscription(str)
+            val imported = mutableListOf<SubscriptionCache>()
+            var updates = SubscriptionUpdateResult()
+            if (urls.isNotEmpty()) {
+                // Keep creation atomic across imports; downloads run after this lock.
+                synchronized(subscriptionImportLock) {
+                    val existingUrls = MmkvManager.decodeSubscriptions()
+                        .mapTo(HashSet()) { it.subscription.url }
+                    urls.forEach { url ->
+                        if (url !in existingUrls) {
+                            try {
+                                imported += importUrlAsSubscription(url)
+                            } catch (_: Exception) {
+                                LogUtil.e(AppConfig.TAG, "Failed to save imported subscription")
+                                updates += SubscriptionUpdateResult(failureCount = 1)
+                            }
+                        }
                     }
                 }
-            return count
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to parse batch subscription", e)
+            }
+            imported.map(this::updateConfigViaSub).forEach { updates += it }
+            BatchImportResult(count, imported.map { it.guid }, updates)
+        } catch (e: ProfileStorageException) {
+            LogUtil.e(AppConfig.TAG, "Failed to store imported profiles", e)
+            BatchImportResult()
         }
-        return 0
     }
 
     /**
@@ -600,21 +590,16 @@ object AngConfigManager {
      * Imports a URL as a subscription.
      *
      * @param url The URL.
-     * @return The number of subscriptions imported.
+     * @return The created subscription, including its stored ID.
      */
-    private fun importUrlAsSubscription(url: String): Int {
-        val subscriptions = MmkvManager.decodeSubscriptions()
-        subscriptions.forEach {
-            if (it.subscription.url == url) {
-                return 0
-            }
-        }
+    private fun importUrlAsSubscription(url: String): SubscriptionCache {
         val uri = URI(Utils.fixIllegalUrl(url))
         val subItem = SubscriptionItem()
         subItem.remarks = uri.fragment ?: "import sub"
         subItem.url = url
-        MmkvManager.encodeSubscription("", subItem)
-        return 1
+        val guid = Utils.getUuid()
+        check(MmkvManager.encodeSubscription(guid, subItem)) { "Failed to save subscription" }
+        return SubscriptionCache(guid, subItem)
     }
 
     /** Generates a description for the profile.
