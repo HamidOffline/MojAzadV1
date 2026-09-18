@@ -1,3 +1,4 @@
+        with:
 name: MojAzad Debug APK
 
 on:
@@ -26,16 +27,112 @@ jobs:
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
             --channel=0 \
             --install "ndk;29.0.14206865"
+
           echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
+
           sed -i '10i\
           \
-              ndkVersion = "29.0.14206865"' ${{ github.workspace }}/V2rayNG/app/build.gradle.kts
+              ndkVersion = "29.0.14206865"' \
+              ${{ github.workspace }}/V2rayNG/app/build.gradle.kts
 
       - name: Restore cached libhev1tun
         id: cache-libhev1tun-restore
         uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}/libs
+          key: libhev1tun-${{ runner.os }}-${{ hashFiles('compile-hevtun.sh') }}
+
+      - name: Build libhev1tun
+        if: steps.cache-libhev1tun-restore.outputs.cache-hit != 'true'
+        run: |
+          bash compile-hevtun.sh
+
+      - name: Save libhev1tun
+        if: steps.cache-libhev1tun-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/libs
+          key: libhev1tun-${{ runner.os }}-${{ hashFiles('compile-hevtun.sh') }}
+
+      - name: Copy libhev1tun
+        run: |
+          cp -r \
+            ${{ github.workspace }}/libs \
+            ${{ github.workspace }}/V2rayNG/app/
+
+      - name: Fetch AndroidLibXrayLite tag
+        run: |
+          pushd AndroidLibXrayLite
+
+          CURRENT_TAG=$(git describe --tags --abbrev=0)
+
+          echo "Current AndroidLibXrayLite tag: $CURRENT_TAG"
+          echo "CURRENT_TAG=$CURRENT_TAG" >> $GITHUB_ENV
+
+          popd
+
+      - name: Download libv2ray
+        uses: robinraju/release-downloader@v1.13
+        with:
+          repository: '2dust/AndroidLibXrayLite'
+          tag: ${{ env.CURRENT_TAG }}
+          fileName: 'libv2ray.aar'
+          out-file-path: V2rayNG/app/libs/
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build Debug APK
+        run: |
+          cd ${{ github.workspace }}/V2rayNG
+
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+
+          chmod 755 gradlew
+
+          ./gradlew assembleDebug
+
+      - name: Show generated APK files
+        run: |
+          echo "===== GENERATED APK FILES ====="
+          find "${{ github.workspace }}/V2rayNG/app/build/outputs" \
+            -type f \
+            -name "*.apk" \
+            -print
+
+      - name: Collect APK files
+        run: |
+          mkdir -p "${{ github.workspace }}/mojazad-apk"
+
+          find "${{ github.workspace }}/V2rayNG/app/build/outputs" \
+            -type f \
+            -name "*.apk" \
+            -exec cp {} "${{ github.workspace }}/mojazad-apk/" \;
+
+          echo "===== APK FILES TO UPLOAD ====="
+          ls -lah "${{ github.workspace }}/mojazad-apk"
+
+          APK_COUNT=$(find "${{ github.workspace }}/mojazad-apk" \
+            -type f \
+            -name "*.apk" | wc -l)
+
+          echo "APK count: $APK_COUNT"
+
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: Build completed but no APK files were found."
+            exit 1
+          fi
+
+      - name: Upload MojAzad Debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: MojAzad-Debug-APK
+          path: ${{ github.workspace }}/mojazad-apk/*.apk
+          if-no-files-found: error
+          retention-days: 7          path: ${{ github.workspace }}/libs
           key: libhev1tun-${{ runner.os }}-${{ hashFiles('compile-hevtun.sh') }}
 
       - name: Build libhev1tun
