@@ -5,22 +5,29 @@ plugins {
 }
 
 android {
+    // Keep the original namespace so existing Kotlin/Java source packages
+    // continue to work without a large package refactor.
     namespace = "com.v2ray.ang"
     compileSdk = 37
 
     defaultConfig {
+        // MojAzad application ID
         applicationId = "com.mojazad.vpn"
+
         minSdk = 24
         targetSdk = 37
         versionCode = 736
         versionName = "2.2.6"
         multiDexEnabled = true
 
-        val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
+        val abiFilterList =
+            (properties["ABI_FILTERS"] as? String)?.split(';')
+
         splits {
             abi {
                 isEnable = true
                 reset()
+
                 if (!abiFilterList.isNullOrEmpty()) {
                     include(*abiFilterList.toTypedArray())
                 } else {
@@ -31,33 +38,52 @@ android {
                         "x86"
                     )
                 }
+
                 isUniversalApk = abiFilterList.isNullOrEmpty()
             }
         }
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner =
+            "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
+                getDefaultProguardFile(
+                    "proguard-android-optimize.txt"
+                ),
                 "proguard-rules.pro"
             )
         }
     }
 
     flavorDimensions.add("distribution")
+
     productFlavors {
         create("fdroid") {
             dimension = "distribution"
+
+            // F-Droid build is installed as a separate package.
             applicationIdSuffix = ".fdroid"
-            buildConfigField("String", "DISTRIBUTION", "\"F-Droid\"")
+
+            buildConfigField(
+                "String",
+                "DISTRIBUTION",
+                "\"F-Droid\""
+            )
         }
+
         create("playstore") {
             dimension = "distribution"
-            buildConfigField("String", "DISTRIBUTION", "\"Play Store\"")
+
+            buildConfigField(
+                "String",
+                "DISTRIBUTION",
+                "\"Play Store\""
+            )
         }
     }
 
@@ -75,47 +101,87 @@ android {
 
     kotlin {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            jvmTarget.set(
+                org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+            )
         }
     }
 
     applicationVariants.all {
         val variant = this
-        val isFdroid = variant.productFlavors.any { it.name == "fdroid" }
+
+        val isFdroid =
+            variant.productFlavors.any {
+                it.name == "fdroid"
+            }
+
         if (isFdroid) {
             val versionCodes =
                 mapOf(
-                    "armeabi-v7a" to 2, "arm64-v8a" to 1, "x86" to 4, "x86_64" to 3, "universal" to 0
+                    "armeabi-v7a" to 2,
+                    "arm64-v8a" to 1,
+                    "x86" to 4,
+                    "x86_64" to 3,
+                    "universal" to 0
                 )
 
             variant.outputs
-                .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
+                .map {
+                    it as com.android.build.gradle.internal.api.ApkVariantOutputImpl
+                }
                 .forEach { output ->
-                    val abi = output.getFilter("ABI") ?: "universal"
-                    output.outputFileName = "v2rayNG_${variant.versionName}-fdroid_${abi}.apk"
+
+                    val abi =
+                        output.getFilter("ABI")
+                            ?: "universal"
+
+                    // MojAzad APK filename
+                    output.outputFileName =
+                        "MojAzad_${variant.versionName}-fdroid_${abi}.apk"
+
                     if (versionCodes.containsKey(abi)) {
                         output.versionCodeOverride =
-                            (100 * variant.versionCode + versionCodes[abi]!!).plus(5000000)
+                            (
+                                100 * variant.versionCode +
+                                    versionCodes[abi]!!
+                            ).plus(5000000)
                     } else {
                         return@forEach
                     }
                 }
         } else {
             val versionCodes =
-                mapOf("armeabi-v7a" to 4, "arm64-v8a" to 4, "x86" to 4, "x86_64" to 4, "universal" to 4)
+                mapOf(
+                    "armeabi-v7a" to 4,
+                    "arm64-v8a" to 4,
+                    "x86" to 4,
+                    "x86_64" to 4,
+                    "universal" to 4
+                )
 
             variant.outputs
-                .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
+                .map {
+                    it as com.android.build.gradle.internal.api.ApkVariantOutputImpl
+                }
                 .forEach { output ->
-                    val abi = if (output.getFilter("ABI") != null)
-                        output.getFilter("ABI")
-                    else
-                        "universal"
 
-                    output.outputFileName = "v2rayNG_${variant.versionName}_${abi}.apk"
+                    val abi =
+                        if (output.getFilter("ABI") != null) {
+                            output.getFilter("ABI")
+                        } else {
+                            "universal"
+                        }
+
+                    // MojAzad APK filename
+                    output.outputFileName =
+                        "MojAzad_${variant.versionName}_${abi}.apk"
+
                     if (versionCodes.containsKey(abi)) {
                         output.versionCodeOverride =
-                            (1000000 * versionCodes[abi]!!).plus(variant.versionCode)
+                            (
+                                1000000 *
+                                    versionCodes[abi]!!
+                            ).plus(variant.versionCode)
                     } else {
                         return@forEach
                     }
@@ -133,12 +199,18 @@ android {
             useLegacyPackaging = true
         }
     }
-
 }
 
 dependencies {
     // Core Libraries
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
+    implementation(
+        fileTree(
+            mapOf(
+                "dir" to "libs",
+                "include" to listOf("*.aar", "*.jar")
+            )
+        )
+    )
 
     // AndroidX Core Libraries
     implementation(libs.androidx.core.ktx)
@@ -192,5 +264,8 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     testImplementation(libs.org.mockito.mockito.inline)
     testImplementation(libs.mockito.kotlin)
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
+
+    coreLibraryDesugaring(
+        libs.desugar.jdk.libs
+    )
 }
