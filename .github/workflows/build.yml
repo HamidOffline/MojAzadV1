@@ -36,19 +36,19 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}/libs
-          key: libhev1tun-${{ runner.os }}-${{ hashFiles('compile-hev.sh') }}
+          key: libhev1tun-${{ runner.os }}-${{ hashFiles('compile-hevtun.sh') }}
 
       - name: Build libhev1tun
         if: steps.cache-libhev1tun-restore.outputs.cache-hit != 'true'
         run: |
-          bash compile-hev.sh
+          bash compile-hevtun.sh
 
       - name: Save libhev1tun
         if: steps.cache-libhev1tun-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: ${{ github.workspace }}/libs
-          key: libhev1tun-${{ runner.os }}-${{ hashFiles('compile-hev.sh') }}
+          key: libhev1tun-${{ runner.os }}-${{ hashFiles('compile-hevtun.sh') }}
 
       - name: Copy libhev1tun
         run: |
