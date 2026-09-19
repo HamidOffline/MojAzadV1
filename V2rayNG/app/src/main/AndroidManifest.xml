@@ -13,31 +13,37 @@
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
+
     <uses-feature
         android:name="android.hardware.camera.autofocus"
         android:required="false" />
+
     <uses-feature
         android:name="android.software.leanback"
         android:required="false" />
+
     <uses-feature
         android:name="android.hardware.touchscreen"
         android:required="false" />
 
-    <!-- https://developer.android.com/about/versions/11/privacy/package-visibility -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="PackageVisibilityPolicy,QueryAllPackagesPermission" />
+
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"
+
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE"
         tools:ignore="ForegroundServicesPolicy" />
+
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
         android:minSdkVersion="34" />
-    <!-- <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> -->
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
@@ -55,13 +61,16 @@
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
+            android:theme="@style/MojAzadSplashTheme">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
+
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
             </intent-filter>
@@ -69,50 +78,65 @@
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
+
         </activity>
+
         <activity
             android:name=".ui.ServerActivity"
             android:exported="false"
             android:windowSoftInputMode="stateUnchanged" />
+
         <activity
             android:name=".ui.ServerCustomConfigActivity"
             android:exported="false"
             android:windowSoftInputMode="stateUnchanged" />
+
         <activity
             android:name=".ui.ServerGroupActivity"
             android:exported="false"
             android:windowSoftInputMode="stateUnchanged" />
+
         <activity
             android:name=".ui.ServerProxyChainActivity"
             android:exported="false"
             android:windowSoftInputMode="stateUnchanged" />
+
         <activity
             android:name=".ui.SettingsActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.PerAppProxyActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.AppPickerActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.ScannerActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.LogcatActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.RoutingSettingActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.RoutingEditActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.SubSettingActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.UserAssetActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.UserAssetUrlActivity"
             android:exported="false" />
@@ -120,21 +144,25 @@
         <activity
             android:name=".ui.SubEditActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.ScScannerActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.ScSwitchActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:process=":RunSoLibV2RayDaemon"
             android:theme="@style/AppThemeDayNight.NoActionBar.Translucent" />
+
         <activity
             android:name=".ui.ScStartActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:process=":RunSoLibV2RayDaemon"
             android:theme="@style/AppThemeDayNight.NoActionBar.Translucent" />
+
         <activity
             android:name=".ui.ScStopActivity"
             android:excludeFromRecents="true"
@@ -145,11 +173,13 @@
         <activity
             android:name=".ui.UrlSchemeActivity"
             android:exported="true">
+
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
+
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -160,13 +190,17 @@
                 <data android:host="install-config" />
                 <data android:host="install-sub" />
             </intent-filter>
+
         </activity>
+
         <activity
             android:name=".ui.CheckUpdateActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.BackupActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.AboutActivity"
             android:exported="false" />
@@ -180,15 +214,19 @@
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:process=":RunSoLibV2RayDaemon"
             tools:ignore="VpnServicePolicy">
+
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
+
             <meta-data
                 android:name="android.net.VpnService.SUPPORTS_ALWAYS_ON"
                 android:value="true" />
+
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="vpn" />
+
         </service>
 
         <service
@@ -197,9 +235,11 @@
             android:foregroundServiceType="specialUse"
             android:label="@string/app_name"
             android:process=":RunSoLibV2RayDaemon">
+
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="proxy" />
+
         </service>
 
         <service
@@ -208,9 +248,11 @@
             android:foregroundServiceType="specialUse"
             android:label="@string/app_name"
             android:process=":RunSoLibV2RayDaemon">
+
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="proxy" />
+
         </service>
 
         <service
@@ -218,31 +260,39 @@
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:process=":RunSoLibV2RayDaemon">
+
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="test" />
+
         </service>
 
         <receiver
             android:name=".receiver.WidgetProvider"
             android:exported="true"
             android:process=":RunSoLibV2RayDaemon">
+
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/app_widget_provider" />
+
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="${applicationId}.action.widget.click" />
                 <action android:name="${applicationId}.action.activity" />
             </intent-filter>
+
         </receiver>
+
         <receiver
             android:name=".receiver.BootReceiver"
             android:exported="true"
             android:label="BootReceiver">
+
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
+
         </receiver>
 
         <service
@@ -253,21 +303,26 @@
             android:label="@string/app_tile_name"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:process=":RunSoLibV2RayDaemon">
+
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
+
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="tile" />
+
         </service>
-        <!-- =====================Tasker===================== -->
+
         <activity
             android:name=".ui.TaskerActivity"
             android:exported="true"
             android:icon="@mipmap/ic_launcher">
+
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
             </intent-filter>
+
         </activity>
 
         <receiver
@@ -275,11 +330,13 @@
             android:exported="true"
             android:process=":RunSoLibV2RayDaemon"
             tools:ignore="ExportedReceiver">
+
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
             </intent-filter>
+
         </receiver>
-        <!-- =====================Tasker===================== -->
+
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
@@ -303,9 +360,11 @@
             android:authorities="${applicationId}.cache"
             android:exported="false"
             android:grantUriPermissions="true">
+
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/cache_paths" />
+
         </provider>
 
     </application>
