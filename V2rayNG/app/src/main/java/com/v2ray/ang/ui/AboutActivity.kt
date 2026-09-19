@@ -14,6 +14,17 @@ class AboutActivity : BaseActivity() {
         ActivityAboutBinding.inflate(layoutInflater)
     }
 
+    companion object {
+        private const val MOJAZAD_GITHUB =
+            "https://github.com/HamidOffline/MojAzadV1"
+
+        private const val MOJAZAD_TELEGRAM =
+            "https://t.me/MojAzadNet"
+
+        private const val MOJAZAD_ISSUES =
+            "https://github.com/HamidOffline/MojAzadV1/issues"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -24,27 +35,27 @@ class AboutActivity : BaseActivity() {
         )
 
         /*
-         * MojAzad GitHub source code
+         * Open MojAzad GitHub source.
          */
         binding.layoutSoureCcode.setOnClickListener {
             Utils.openUri(
                 this,
-                "https://github.com/HamidOffline/MojAzadV1"
+                MOJAZAD_GITHUB
             )
         }
 
         /*
-         * Keep current feedback link for now.
+         * Open MojAzad GitHub issues.
          */
         binding.layoutFeedback.setOnClickListener {
             Utils.openUri(
                 this,
-                AppConfig.APP_ISSUES_URL
+                MOJAZAD_ISSUES
             )
         }
 
         /*
-         * Open-source licenses
+         * Open source licenses.
          */
         binding.layoutOssLicenses.setOnClickListener {
 
@@ -56,28 +67,36 @@ class AboutActivity : BaseActivity() {
             )
 
             android.app.AlertDialog.Builder(this)
-                .setTitle("Open source licenses")
-                .setView(webView)
-                .setPositiveButton("OK") { dialog, _ ->
+                .setTitle(
+                    "Open source licenses"
+                )
+                .setView(
+                    webView
+                )
+                .setPositiveButton(
+                    android.R.string.ok
+                ) { dialog, _ ->
                     dialog.dismiss()
                 }
                 .show()
         }
 
         /*
-         * MojAzad Telegram channel
+         * MojAzad Telegram channel.
          */
         binding.layoutTgChannel.setOnClickListener {
+
             Utils.openUri(
                 this,
-                "https://t.me/MojAzadNet"
+                MOJAZAD_TELEGRAM
             )
         }
 
         /*
-         * Privacy policy
+         * Privacy policy.
          */
         binding.layoutPrivacyPolicy.setOnClickListener {
+
             Utils.openUri(
                 this,
                 AppConfig.APP_PRIVACY_POLICY
@@ -85,17 +104,16 @@ class AboutActivity : BaseActivity() {
         }
 
         /*
-         * Version
+         * App version.
          */
-        "v${BuildConfig.VERSION_NAME} (${CoreNativeManager.getLibVersion()})".also {
-            binding.tvVersion.text = it
-        }
+        binding.tvVersion.text =
+            "v${BuildConfig.VERSION_NAME} (${CoreNativeManager.getLibVersion()})"
+
 
         /*
-         * Application ID
+         * Package name.
          */
-        BuildConfig.APPLICATION_ID.also {
-            binding.tvAppId.text = it
-        }
+        binding.tvAppId.text =
+            BuildConfig.APPLICATION_ID
     }
 }
