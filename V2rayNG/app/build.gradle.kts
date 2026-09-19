@@ -31,9 +31,9 @@ android {
         targetSdk = 37
 
         /*
-         * MojAzad version.
+         * MojAzad V2
          */
-        versionCode = 737
+        versionCode = 738
         versionName = "2.2.7"
 
         multiDexEnabled = true
