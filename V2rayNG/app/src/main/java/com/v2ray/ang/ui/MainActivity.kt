@@ -117,8 +117,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         /*
          * v2rayNG can contain a default empty subscription.
          *
-         * Therefore MojAzad must check whether at least one
-         * subscription has a real URL.
+         * MojAzad checks whether at least one real
+         * subscription URL exists.
          */
         val hasValidSubscription =
             MmkvManager.decodeSubscriptions().any {
@@ -126,11 +126,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
 
         /*
-         * First launch / no real subscription:
-         * Ask the customer for their subscription URL.
+         * First launch:
+         * Ask for subscription URL.
          *
          * Later launches:
-         * Refresh subscription and ping servers.
+         * Refresh -> Ping -> Sort -> Select fastest -> Connect.
          */
         if (!hasValidSubscription) {
             showMojAzadActivationDialog()
@@ -145,7 +145,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     /**
-     * MojAzad first-run subscription activation.
+     * MojAzad first-run activation.
      */
     private fun showMojAzadActivationDialog() {
 
@@ -209,10 +209,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         return@setOnClickListener
                     }
 
-                    /*
-                     * Internal local ID.
-                     * This is NOT the UUID/token inside the customer's URL.
-                     */
                     val subId =
                         Utils.getUuid()
 
@@ -222,9 +218,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                             remarks =
                                 "MojAzad"
 
-                            /*
-                             * Save the customer's URL.
-                             */
                             url =
                                 subscriptionUrl
 
@@ -232,14 +225,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                 true
 
                             /*
-                             * Automatic background subscription update ON.
+                             * Automatic subscription update:
+                             * ON every 60 minutes.
                              */
                             autoUpdate =
                                 true
 
-                            /*
-                             * Update every 60 minutes.
-                             */
                             updateInterval =
                                 60L
                         }
@@ -259,18 +250,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                         try {
 
-                            /*
-                             * Download/import the subscription immediately.
-                             */
                             val result =
                                 AngConfigManager
                                     .updateConfigViaSubAll()
 
                             if (result.successCount > 0) {
 
-                                /*
-                                 * Schedule automatic subscription updates.
-                                 */
                                 SubscriptionUpdater.syncOne(
                                     subId = subId
                                 )
@@ -289,11 +274,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                     )
 
                                     /*
-                                     * First successful activation:
-                                     * automatically ping all servers.
+                                     * First activation:
+                                     *
+                                     * Ping all servers.
+                                     * When all tests finish:
+                                     * sort -> select fastest -> connect.
                                      */
                                     mainViewModel
-                                        .testAllRealPing()
+                                        .testAllRealPing(
+                                            autoConnectAfterFinish = true
+                                        )
 
                                     hideLoading()
 
@@ -304,10 +294,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                             } else {
 
-                                /*
-                                 * Subscription failed.
-                                 * Remove the newly-created invalid subscription.
-                                 */
                                 MmkvManager
                                     .removeSubscription(
                                         subId
@@ -361,19 +347,21 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     /**
-     * Refresh subscriptions whenever MojAzad starts.
+     * Refresh whenever MojAzad starts.
      *
-     * Opening MojAzad:
-     * Update subscription -> reload list -> ping all servers.
+     * Foreground startup:
      *
-     * Background 60-minute WorkManager update:
-     * Update subscription only, without ping.
+     * Subscription update
+     * -> Ping
+     * -> Sort
+     * -> Select fastest valid server
+     * -> Auto-connect.
+     *
+     * 60-minute background subscription update
+     * stays independent and does not trigger ping.
      */
     private fun refreshMojAzadSubscription() {
 
-        /*
-         * Synchronize periodic automatic subscription updates.
-         */
         SubscriptionUpdater.sync()
 
         showLoading()
@@ -384,9 +372,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
             try {
 
-                /*
-                 * Perform an actual subscription refresh now.
-                 */
                 val result =
                     AngConfigManager
                         .updateConfigViaSubAll()
@@ -407,18 +392,18 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         )
 
                         /*
-                         * Only the foreground startup refresh
-                         * triggers automatic ping.
+                         * Startup automatic ping.
+                         *
+                         * MainViewModel will wait until
+                         * every ping test has finished.
                          */
                         mainViewModel
-                            .testAllRealPing()
+                            .testAllRealPing(
+                                autoConnectAfterFinish = true
+                            )
 
                     } else {
 
-                        /*
-                         * Refresh failed or returned no configs.
-                         * Keep the already stored server list.
-                         */
                         mainViewModel
                             .reloadServerList()
                     }
@@ -514,6 +499,69 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     false,
                     isRunning
                 )
+            }
+
+        /*
+         * MojAzad auto-connect event.
+         *
+         * MainViewModel sends this only after:
+         *
+         * 1. All automatic ping tests have finished.
+         * 2. Servers have been sorted.
+         * 3. The fastest valid server has been selected.
+         */
+        mainViewModel
+            .autoConnectBestServerAction
+            .observe(this) { shouldConnect ->
+
+                if (shouldConnect != true) {
+                    return@observe
+                }
+
+                /*
+                 * Consume immediately so this event
+                 * cannot be triggered again accidentally.
+                 */
+                mainViewModel
+                    .consumeAutoConnectBestServerAction()
+
+                /*
+                 * If already connected, restart the VPN
+                 * with the newly-selected fastest server.
+                 */
+                if (
+                    mainViewModel
+                        .isRunning
+                        .value == true
+                ) {
+
+                    restartV2Ray()
+
+                } else if (
+                    SettingsManager.isVpnMode()
+                ) {
+
+                    /*
+                     * On the first VPN connection,
+                     * Android may request VPN permission.
+                     */
+                    val intent =
+                        VpnService.prepare(this)
+
+                    if (intent == null) {
+
+                        startV2Ray()
+
+                    } else {
+
+                        requestVpnPermission
+                            .launch(intent)
+                    }
+
+                } else {
+
+                    startV2Ray()
+                }
             }
 
         mainViewModel
@@ -999,6 +1047,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 true
             }
 
+            /*
+             * Manual Ping stays manual.
+             *
+             * It will NOT automatically connect.
+             */
             R.id.real_ping_all -> {
 
                 toast(
