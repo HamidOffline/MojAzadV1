@@ -1,90 +1,120 @@
-# v2rayNG
+# 🌊 MojAzad VPN | موج آزاد
 
-A V2Ray client for Android, support [Xray core](https://github.com/XTLS/Xray-core) and [v2fly core](https://github.com/v2fly/v2ray-core)
+**MojAzad VPN (موج آزاد)** یک کلاینت VPN برای Android است که با تمرکز بر اتصال ساده، انتخاب خودکار بهترین سرور، تست Ping و مدیریت Subscriptionها توسعه داده شده است.
 
-[![API](https://img.shields.io/badge/API-24%2B-yellow.svg?style=flat)](https://developer.android.com/about/versions/lollipop)
-[![Kotlin Version](https://img.shields.io/badge/Kotlin-2.4.0-blue.svg)](https://kotlinlang.org)
-[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/2dust/v2rayNG)](https://github.com/2dust/v2rayNG/commits/master)
-[![CodeFactor](https://www.codefactor.io/repository/github/2dust/v2rayng/badge)](https://www.codefactor.io/repository/github/2dust/v2rayng)
-[![GitHub Releases](https://img.shields.io/github/downloads/2dust/v2rayNG/latest/total?logo=github)](https://github.com/2dust/v2rayNG/releases)
-[![Chat on Telegram](https://img.shields.io/badge/Chat%20on-Telegram-brightgreen.svg)](https://t.me/v2rayn)
+## 📱 دانلود MojAzad VPN
+
+آخرین نسخه رسمی برنامه را از بخش Releases دانلود کنید:
+
+**GitHub Releases:**  
+https://github.com/HamidOffline/MojAzadVPN/releases
+
+اگر معماری پردازنده گوشی خود را نمی‌دانید، نسخه **Universal APK** را دانلود کنید.
+
+## ✨ امکانات MojAzad
+
+- انتخاب خودکار بهترین سرور بر اساس Ping
+- اتصال خودکار به سریع‌ترین سرور
+- تست Ping تمام سرورها
+- پشتیبانی از چند Subscription
+- افزودن Subscription از Clipboard
+- بروزرسانی خودکار Subscriptionها
+- نمایش دو ستونه سرورها
+- رابط کاربری اختصاصی MojAzad
+- پشتیبانی از Light Mode و Dark Mode
+- پشتیبانی از VLESS
+- پشتیبانی از VMess
+- پشتیبانی از Trojan
+- پشتیبانی از Xray / V2Ray
+- APK مخصوص معماری‌های مختلف Android
+- نسخه Universal برای نصب آسان‌تر
+
+## 🚀 MojAzad.V2
+
+نسخه فعلی:
+
+**MojAzad.V2**
+
+در نسخه دوم موج آزاد، رابط کاربری، مدیریت Subscriptionها، انتخاب سرور و سیستم اتصال خودکار بهبود داده شده است.
+
+## 📦 نسخه‌های APK
+
+MojAzad برای معماری‌های زیر منتشر می‌شود:
+
+- `arm64-v8a`
+- `armeabi-v7a`
+- `x86`
+- `x86_64`
+- `universal`
+
+برای اکثر گوشی‌های جدید Android نسخه `arm64-v8a` مناسب است.
+
+اگر مطمئن نیستید، نسخه `universal` را نصب کنید.
+
+## 📡 Subscription
+
+MojAzad امکان اضافه کردن و مدیریت چند Subscription را فراهم می‌کند.
+
+Subscription جدید را می‌توان از داخل برنامه یا از طریق Clipboard اضافه کرد.
+
+پس از دریافت سرورها، برنامه می‌تواند Ping آن‌ها را آزمایش کرده و بهترین سرور را به‌صورت خودکار انتخاب کند.
+
+## ⚡ Smart Server Selection
+
+MojAzad سرورها را بر اساس Ping آزمایش می‌کند و سروری با کمترین Ping معتبر را انتخاب می‌کند.
+
+این قابلیت باعث می‌شود انتخاب سرور سریع‌تر و ساده‌تر انجام شود.
+
+## 🌙 رابط کاربری
+
+MojAzad دارای رابط کاربری اختصاصی با تم آبی و سفید است و از حالت تاریک نیز پشتیبانی می‌کند.
+
+کارت‌های سرورها به‌صورت فشرده و دو ستونه طراحی شده‌اند تا تعداد بیشتری سرور در صفحه نمایش داده شود.
+
+## 🔗 ارتباط با موج آزاد
+
+Telegram:
+
+`@MojAzadNet`
+
+Support:
+
+`@FreeWaveSup`
+
+Bot:
+
+`@FreeWaveNetBot`
+
+## 🔐 امنیت انتشار
+
+نسخه‌های Release برنامه با کلید رسمی MojAzad امضا می‌شوند.
+
+برای فایل‌های منتشرشده SHA256 checksum نیز ارائه می‌شود.
+
+## 🧩 پروژه متن‌باز
+
+MojAzad بر پایه پروژه متن‌باز **v2rayNG** توسعه داده شده است.
+
+Upstream project:
+
+https://github.com/2dust/v2rayNG
+
+تغییرات MojAzad شامل رابط کاربری، مدیریت Subscription، انتخاب خودکار سرور، Ping هوشمند، برندینگ و بهبود تجربه کاربری است.
+
+## 📄 License
+
+این پروژه تحت مجوز:
+
+**GNU General Public License v3.0 (GPL-3.0)**
+
+منتشر می‌شود.
+
+فایل `LICENSE` موجود در Repository را برای جزئیات کامل مجوز مطالعه کنید.
 
 ---
 
-## Download / 下载
+## MojAzad VPN
 
-Download the latest release here:
+**MojAzad VPN | موج آزاد | Android VPN | V2Ray | Xray | VLESS | VMess | Trojan**
 
-在这里下载最新版本：
-
-[https://github.com/2dust/v2rayNG/releases](https://github.com/2dust/v2rayNG/releases)
-
-> [!TIP]
-> v2rayNG is the mobile version. For the desktop version, please visit the v2rayN \
-> v2rayNG 是手机版，电脑版请访问 v2rayN
->
-> https://github.com/2dust/v2rayN
-
----
-
-### Geoip and Geosite
-
-- geoip.dat and geosite.dat files are in `Android/data/com.v2ray.ang/files/assets` (path may differ on some Android device)
-- download feature will get enhanced version in this [repo](https://github.com/Loyalsoldier/v2ray-rules-dat) (note: it needs a working proxy)
-- latest official [domain list](https://github.com/Loyalsoldier/v2ray-rules-dat) and [ip list](https://github.com/Loyalsoldier/geoip) can be imported manually
-- possible to use a third-party dat file in the same folder, like [h2y](https://guide.v2fly.org/routing/sitedata.html#%E5%A4%96%E7%BD%AE%E7%9A%84%E5%9F%9F%E5%90%8D%E6%96%87%E4%BB%B6)
-
-More in our [wiki](https://github.com/2dust/v2rayNG/wiki)
-
-### Geoip 与 Geosite
-
-- geoip.dat 和 geosite.dat 文件位于 `Android/data/com.v2ray.ang/files/assets`（部分设备路径可能不同）
-- 下载功能将获取该 [仓库](https://github.com/Loyalsoldier/v2ray-rules-dat) 中的增强版本（注意：此功能需要一个可用的代理）
-- 最新官方 [域名列表](https://github.com/Loyalsoldier/v2ray-rules-dat) 和 [IP 列表](https://github.com/Loyalsoldier/geoip) 可手动导入
-- 也可在同一文件夹中使用第三方 dat 文件，例如 [h2y](https://guide.v2fly.org/routing/sitedata.html#%E5%A4%96%E7%BD%AE%E7%9A%84%E5%9F%9F%E5%90%8D%E6%96%87%E4%BB%B6)
-
-更多内容请见我们的 [wiki](https://github.com/2dust/v2rayNG/wiki)
-
----
-
-## Development guide / 开发指南
-
-### Note
-
-- Android project under the V2rayNG folder can be compiled directly in Android Studio, or using the Gradle wrapper. But the v2ray core inside the aar is (probably) outdated.
-- The aar can be compiled from the Golang project [AndroidLibV2rayLite](https://github.com/2dust/AndroidLibV2rayLite) or [AndroidLibXrayLite](https://github.com/2dust/AndroidLibXrayLite). For a quick start, read the guides for [Go Mobile](https://github.com/golang/go/wiki/Mobile) and [Makefiles for Go Developers](https://tutorialedge.net/golang/makefiles-for-go-developers/).
-- v2rayNG can run on Android Emulators. For WSA, VPN permission needs to be granted via `appops set [package name] ACTIVATE_VPN allow`.
-
-### 提示
-
-- V2rayNG 文件夹下的 Android 项目可直接在 Android Studio 中编译，或使用 Gradle wrapper 编译。但 aar 内置的 v2ray core（可能）已过时。
-- aar 可由 Golang 项目 [AndroidLibV2rayLite](https://github.com/2dust/AndroidLibV2rayLite) 或 [AndroidLibXrayLite](https://github.com/2dust/AndroidLibXrayLite) 编译而成。快速入门可参考 [Go Mobile](https://github.com/golang/go/wiki/Mobile) 指南和 [Makefiles for Go Developers](https://tutorialedge.net/golang/makefiles-for-go-developers/)。
-- v2rayNG 可在 Android 模拟器上运行。对于 WSA，需要通过 `appops set [package name] ACTIVATE_VPN allow` 授予 VPN 权限。
-
----
-
-
-## GPG Verification / GPG 签名校验
-
-Release files are signed with GPG to verify authenticity and integrity, helping prevent mirror, ISP, or CDN hijacking.
-
-发布文件已使用 GPG 签名，可用于校验文件真实性与完整性，预防镜像站、运营商或 CDN 劫持。
-
-### Fingerprint / 公钥指纹
-
-```text
-7694 5E9F 3E9A 168F 8070 F195 805D 661C
-134D FAF6 8903 C199 463C 31E5 AE90 3AE0
-```
-
----
-
-## Community / 社区
-
-Telegram Group / Telegram 群组：
-
-[https://t.me/v2rayN](https://t.me/v2rayN)
-
-Telegram Channel / Telegram 频道：
-
-[https://t.me/github_2dust](https://t.me/github_2dust)
+🌊 **اینترنت موج آزاد**
