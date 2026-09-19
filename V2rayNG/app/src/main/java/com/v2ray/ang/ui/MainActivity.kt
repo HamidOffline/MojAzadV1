@@ -121,7 +121,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
          * Ask for the customer's subscription URL.
          *
          * Later launches:
-         * Immediately refresh the saved subscription.
+         * Immediately refresh the saved subscription
+         * and then ping all servers.
          */
         if (MmkvManager.decodeSubscriptions().isEmpty()) {
             showMojAzadActivationDialog()
@@ -225,6 +226,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                             url =
                                 subscriptionUrl
 
+                            /*
+                             * Keep automatic subscription update enabled.
+                             */
                             enabled =
                                 true
 
@@ -232,10 +236,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                 true
 
                             /*
-                             * 24 hours in minutes.
+                             * Automatic background subscription update
+                             * every 60 minutes.
+                             *
+                             * Background updates do NOT trigger ping.
                              */
                             updateInterval =
-                                1440L
+                                60L
                         }
 
                     MmkvManager.encodeSubscription(
@@ -281,6 +288,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                     refreshGroupTabTitles(
                                         true
                                     )
+
+                                    /*
+                                     * First successful activation:
+                                     * Ping all imported servers.
+                                     */
+                                    mainViewModel
+                                        .testAllRealPing()
 
                                     hideLoading()
 
@@ -355,6 +369,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     /**
      * Refresh subscriptions whenever MojAzad starts.
      *
+     * After a successful refresh, ping all servers.
+     *
      * Existing server configs are kept available if the refresh fails.
      */
     private fun refreshMojAzadSubscription() {
@@ -362,6 +378,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         /*
          * Keep periodic auto-update tasks synchronized
          * with the saved subscription settings.
+         *
+         * The background worker only updates the subscription.
+         * It does not trigger server ping.
          */
         SubscriptionUpdater.sync()
 
@@ -395,11 +414,23 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                             true
                         )
 
+                        /*
+                         * MojAzad was opened and the subscription
+                         * was successfully refreshed.
+                         *
+                         * Now automatically ping all servers.
+                         */
+                        mainViewModel
+                            .testAllRealPing()
+
                     } else {
 
                         /*
                          * Keep displaying the already stored
                          * server list if nothing new was received.
+                         *
+                         * Do not trigger automatic ping here because
+                         * the subscription refresh did not return configs.
                          */
                         mainViewModel
                             .reloadServerList()
