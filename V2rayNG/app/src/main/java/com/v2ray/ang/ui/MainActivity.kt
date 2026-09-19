@@ -55,7 +55,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     private lateinit var groupPagerAdapter: GroupPagerAdapter
     private var tabMediator: TabLayoutMediator? = null
-
+    private var isConnecting = false
     private val requestVpnPermission =
         registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
