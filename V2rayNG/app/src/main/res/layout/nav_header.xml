@@ -1,21 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/view_height_dp160"
-    android:background="@drawable/nav_header_bg"
-    android:gravity="center"
+    android:layout_height="176dp"
+    android:background="?attr/colorPrimaryContainer"
+    android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="@dimen/padding_spacing_dp16">
+    android:paddingStart="24dp"
+    android:paddingTop="28dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="20dp">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:fontFamily="@font/montserrat_thin"
-        android:gravity="center"
-        android:paddingTop="@dimen/padding_spacing_dp8"
+        android:gravity="start"
         android:text="@string/app_name"
-        android:textAppearance="@style/TextAppearance.AppCompat.Display1" />
+        android:textColor="?attr/colorOnPrimaryContainer"
+        android:textSize="28sp"
+        android:textStyle="bold" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="start"
+        android:text="اینترنت موج آزاد"
+        android:textColor="?attr/colorOnPrimaryContainer"
+        android:textSize="14sp" />
+
+    <View
+        android:layout_width="48dp"
+        android:layout_height="3dp"
+        android:layout_marginTop="18dp"
+        android:background="@color/md_theme_primary" />
 
 </LinearLayout>
