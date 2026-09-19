@@ -1015,7 +1015,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun handleFabAction() {
-     isConnecting = true
         applyRunningState(
             isLoading = true,
             isRunning = false
