@@ -1192,7 +1192,7 @@ private fun applyRunningState(
                 )
             )
 
-        binding.tvConnectState.text =
+        binding.tvTestState.text =
             "Connected"
 
         binding.fab
@@ -1226,7 +1226,7 @@ private fun applyRunningState(
                 )
             )
 
-        binding.tvConnectState.text =
+        binding.tvTestState.text =
             "Connect"
 
         binding.fab
