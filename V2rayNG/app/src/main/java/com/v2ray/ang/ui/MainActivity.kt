@@ -115,16 +115,24 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         setupViewModel()
 
         /*
-         * MojAzad startup behavior:
+         * v2rayNG can contain a default empty subscription.
          *
-         * First launch:
-         * Ask for the customer's subscription URL.
+         * Therefore MojAzad must check whether at least one
+         * subscription has a real URL.
+         */
+        val hasValidSubscription =
+            MmkvManager.decodeSubscriptions().any {
+                it.subscription.url.isNotBlank()
+            }
+
+        /*
+         * First launch / no real subscription:
+         * Ask the customer for their subscription URL.
          *
          * Later launches:
-         * Immediately refresh the saved subscription
-         * and then ping all servers.
+         * Refresh subscription and ping servers.
          */
-        if (MmkvManager.decodeSubscriptions().isEmpty()) {
+        if (!hasValidSubscription) {
             showMojAzadActivationDialog()
         } else {
             refreshMojAzadSubscription()
@@ -137,17 +145,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     /**
-     * First-run MojAzad activation.
-     *
-     * The customer's subscription URL is stored exactly as entered.
-     * The generated UUID is only the local v2rayNG/MojAzad subscription ID.
+     * MojAzad first-run subscription activation.
      */
     private fun showMojAzadActivationDialog() {
 
         val input =
             AppCompatEditText(this).apply {
 
-                hint = "Subscription URL"
+                hint = "لینک اشتراک موج آزاد"
 
                 inputType =
                     InputType.TYPE_CLASS_TEXT or
@@ -205,10 +210,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     }
 
                     /*
-                     * Local internal subscription ID.
-                     *
-                     * This has nothing to do with the UUID/token
-                     * inside the customer's subscription URL.
+                     * Internal local ID.
+                     * This is NOT the UUID/token inside the customer's URL.
                      */
                     val subId =
                         Utils.getUuid()
@@ -220,26 +223,22 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                 "MojAzad"
 
                             /*
-                             * Keep the customer's subscription URL
-                             * exactly as entered.
+                             * Save the customer's URL.
                              */
                             url =
                                 subscriptionUrl
 
-                            /*
-                             * Keep automatic subscription update enabled.
-                             */
                             enabled =
                                 true
 
+                            /*
+                             * Automatic background subscription update ON.
+                             */
                             autoUpdate =
                                 true
 
                             /*
-                             * Automatic background subscription update
-                             * every 60 minutes.
-                             *
-                             * Background updates do NOT trigger ping.
+                             * Update every 60 minutes.
                              */
                             updateInterval =
                                 60L
@@ -261,7 +260,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         try {
 
                             /*
-                             * Actually download/import the subscription now.
+                             * Download/import the subscription immediately.
                              */
                             val result =
                                 AngConfigManager
@@ -270,7 +269,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                             if (result.successCount > 0) {
 
                                 /*
-                                 * Schedule future automatic updates.
+                                 * Schedule automatic subscription updates.
                                  */
                                 SubscriptionUpdater.syncOne(
                                     subId = subId
@@ -291,7 +290,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                                     /*
                                      * First successful activation:
-                                     * Ping all imported servers.
+                                     * automatically ping all servers.
                                      */
                                     mainViewModel
                                         .testAllRealPing()
@@ -306,9 +305,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                             } else {
 
                                 /*
-                                 * Activation failed.
-                                 * Remove the invalid subscription record
-                                 * and ask for the URL again.
+                                 * Subscription failed.
+                                 * Remove the newly-created invalid subscription.
                                  */
                                 MmkvManager
                                     .removeSubscription(
@@ -331,10 +329,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                         } catch (e: Exception) {
 
-                            /*
-                             * Do not leave a broken subscription
-                             * after a failed first activation.
-                             */
                             MmkvManager
                                 .removeSubscription(
                                     subId
@@ -369,18 +363,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     /**
      * Refresh subscriptions whenever MojAzad starts.
      *
-     * After a successful refresh, ping all servers.
+     * Opening MojAzad:
+     * Update subscription -> reload list -> ping all servers.
      *
-     * Existing server configs are kept available if the refresh fails.
+     * Background 60-minute WorkManager update:
+     * Update subscription only, without ping.
      */
     private fun refreshMojAzadSubscription() {
 
         /*
-         * Keep periodic auto-update tasks synchronized
-         * with the saved subscription settings.
-         *
-         * The background worker only updates the subscription.
-         * It does not trigger server ping.
+         * Synchronize periodic automatic subscription updates.
          */
         SubscriptionUpdater.sync()
 
@@ -415,10 +407,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         )
 
                         /*
-                         * MojAzad was opened and the subscription
-                         * was successfully refreshed.
-                         *
-                         * Now automatically ping all servers.
+                         * Only the foreground startup refresh
+                         * triggers automatic ping.
                          */
                         mainViewModel
                             .testAllRealPing()
@@ -426,11 +416,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     } else {
 
                         /*
-                         * Keep displaying the already stored
-                         * server list if nothing new was received.
-                         *
-                         * Do not trigger automatic ping here because
-                         * the subscription refresh did not return configs.
+                         * Refresh failed or returned no configs.
+                         * Keep the already stored server list.
                          */
                         mainViewModel
                             .reloadServerList()
@@ -451,10 +438,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     Dispatchers.Main
                 ) {
 
-                    /*
-                     * A failed refresh must not make
-                     * the existing server list unusable.
-                     */
                     mainViewModel
                         .reloadServerList()
 
