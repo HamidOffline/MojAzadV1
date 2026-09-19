@@ -81,6 +81,74 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
         }
 
+    /*
+     * MojAzad:
+     *
+     * Dedicated launcher for Subscription Settings.
+     *
+     * When a new subscription is created,
+     * SubSettingActivity returns its exact subscription ID.
+     */
+    private val requestSubSettingLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+
+            val needsSetupGroupTab =
+                SettingsChangeManager.consumeSetupGroupTab()
+
+            if (
+                SettingsChangeManager.consumeRestartService() &&
+                mainViewModel.isRunning.value == true
+            ) {
+                restartV2Ray()
+            }
+
+            if (
+                result.resultCode == RESULT_OK
+            ) {
+
+                val data =
+                    result.data
+
+                val subId =
+                    data
+                        ?.getStringExtra(
+                            SubSettingActivity.EXTRA_SUB_ID
+                        )
+                        .orEmpty()
+
+                val isNewSubscription =
+                    data
+                        ?.getBooleanExtra(
+                            SubSettingActivity.EXTRA_IS_NEW_SUB,
+                            false
+                        )
+                        ?: false
+
+                if (
+                    isNewSubscription &&
+                    subId.isNotBlank()
+                ) {
+
+                    handleNewMojAzadSubscription(
+                        subId
+                    )
+
+                    return@registerForActivityResult
+                }
+            }
+
+            /*
+             * Existing subscription was edited/deleted,
+             * or user simply returned from the screen.
+             */
+            if (needsSetupGroupTab) {
+                setupGroupTab()
+                refreshGroupTabTitles(true)
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -117,28 +185,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         setupGroupTab()
         setupViewModel()
 
-        /*
-         * v2rayNG can contain a default empty subscription.
-         *
-         * MojAzad checks whether at least one subscription
-         * with a real URL exists.
-         */
         val hasValidSubscription =
             MmkvManager.decodeSubscriptions().any {
                 it.subscription.url.isNotBlank()
             }
 
-        /*
-         * First launch:
-         * Ask user for subscription URL.
-         *
-         * Later launches:
-         * Refresh subscription
-         * -> Ping
-         * -> Sort
-         * -> Select fastest server
-         * -> Auto-connect.
-         */
         if (!hasValidSubscription) {
             showMojAzadActivationDialog()
         } else {
@@ -152,13 +203,137 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     /**
-     * MojAzad first-run activation.
+     * Handle a subscription created manually from:
      *
-     * Important:
-     * after subscription import succeeds,
-     * explicitly switch MainViewModel to the new
-     * MojAzad subscription before starting Ping.
+     * Subscription Settings -> Add.
+     *
+     * Flow:
+     *
+     * Update subscriptions
+     * -> Select newly-created subscription
+     * -> Open its tab
+     * -> Ping all servers in that subscription
+     * -> Sort
+     * -> Select fastest server
+     * -> Auto-connect.
      */
+    private fun handleNewMojAzadSubscription(
+        subId: String
+    ) {
+
+        showLoading()
+
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
+
+            try {
+
+                /*
+                 * Immediately download/import subscription data.
+                 */
+                AngConfigManager
+                    .updateConfigViaSubAll()
+
+                /*
+                 * Check the exact newly-created subscription,
+                 * not the other existing subscriptions.
+                 */
+                val hasServers =
+                    MmkvManager
+                        .decodeServerList(
+                            subId
+                        )
+                        .isNotEmpty()
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    /*
+                     * Explicitly switch MainViewModel
+                     * to the newly-created subscription.
+                     */
+                    mainViewModel
+                        .subscriptionIdChanged(
+                            subId
+                        )
+
+                    /*
+                     * Rebuild tabs and move to this subscription.
+                     */
+                    setupGroupTab()
+
+                    refreshGroupTabTitles(
+                        true
+                    )
+
+                    if (hasServers) {
+
+                        /*
+                         * New subscription:
+                         *
+                         * Ping
+                         * -> Sort
+                         * -> Fastest server
+                         * -> Auto-connect.
+                         */
+                        mainViewModel
+                            .testAllRealPing(
+                                autoConnectAfterFinish = true
+                            )
+
+                        toast(
+                            "اشتراک جدید با موفقیت اضافه شد"
+                        )
+
+                    } else {
+
+                        toast(
+                            "دریافت سرورهای اشتراک جدید انجام نشد"
+                        )
+                    }
+
+                    hideLoading()
+                }
+
+            } catch (e: Exception) {
+
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "MojAzad new subscription update failed",
+                    e
+                )
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    /*
+                     * Keep the new subscription visible
+                     * even if its first download failed.
+                     */
+                    mainViewModel
+                        .subscriptionIdChanged(
+                            subId
+                        )
+
+                    setupGroupTab()
+
+                    refreshGroupTabTitles(
+                        true
+                    )
+
+                    hideLoading()
+
+                    toast(
+                        "دریافت اشتراک جدید انجام نشد"
+                    )
+                }
+            }
+        }
+    }
+
     private fun showMojAzadActivationDialog() {
 
         val input =
@@ -236,12 +411,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         return@setOnClickListener
                     }
 
-                    /*
-                     * Local/internal subscription ID.
-                     *
-                     * This ID is unrelated to the token/UUID
-                     * contained inside the customer's URL.
-                     */
                     val subId =
                         Utils.getUuid()
 
@@ -257,22 +426,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                             enabled =
                                 true
 
-                            /*
-                             * Background auto-update ON.
-                             */
                             autoUpdate =
                                 true
 
-                            /*
-                             * Update subscription every 60 minutes.
-                             */
                             updateInterval =
                                 60L
                         }
 
-                    /*
-                     * Save subscription.
-                     */
                     MmkvManager.encodeSubscription(
                         subId,
                         subscription
@@ -288,9 +448,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                         try {
 
-                            /*
-                             * Download and import subscription immediately.
-                             */
                             val result =
                                 AngConfigManager
                                     .updateConfigViaSubAll()
@@ -299,9 +456,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                 result.successCount > 0
                             ) {
 
-                                /*
-                                 * Schedule periodic background updates.
-                                 */
                                 SubscriptionUpdater.syncOne(
                                     subId = subId
                                 )
@@ -310,41 +464,17 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                     Dispatchers.Main
                                 ) {
 
-                                    /*
-                                     * IMPORTANT FIX:
-                                     *
-                                     * On first launch the ViewModel may still
-                                     * point to v2rayNG's empty/default group.
-                                     *
-                                     * Explicitly switch to the newly-created
-                                     * MojAzad subscription.
-                                     *
-                                     * subscriptionIdChanged() also reloads
-                                     * the server list into serversCache.
-                                     */
                                     mainViewModel
                                         .subscriptionIdChanged(
                                             subId
                                         )
 
-                                    /*
-                                     * Now rebuild/select group tabs.
-                                     */
                                     setupGroupTab()
 
                                     refreshGroupTabTitles(
                                         true
                                     )
 
-                                    /*
-                                     * Now serversCache contains the MojAzad
-                                     * servers from the newly-added subscription.
-                                     *
-                                     * Ping all
-                                     * -> Sort
-                                     * -> Select fastest valid server
-                                     * -> Auto-connect.
-                                     */
                                     mainViewModel
                                         .testAllRealPing(
                                             autoConnectAfterFinish = true
@@ -359,11 +489,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                             } else {
 
-                                /*
-                                 * Subscription failed.
-                                 *
-                                 * Remove the newly-created invalid subscription.
-                                 */
                                 MmkvManager
                                     .removeSubscription(
                                         subId
@@ -385,9 +510,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                         } catch (e: Exception) {
 
-                            /*
-                             * Remove invalid subscription if activation failed.
-                             */
                             MmkvManager
                                 .removeSubscription(
                                     subId
@@ -419,26 +541,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         dialog.show()
     }
 
-    /**
-     * Refresh subscriptions whenever MojAzad starts.
-     *
-     * Foreground startup:
-     *
-     * Update subscription
-     * -> Reload servers
-     * -> Ping
-     * -> Sort
-     * -> Select fastest valid server
-     * -> Auto-connect.
-     *
-     * Background 60-minute subscription update:
-     * update only, without foreground Ping.
-     */
     private fun refreshMojAzadSubscription() {
 
-        /*
-         * Keep WorkManager periodic subscriptions scheduled.
-         */
         SubscriptionUpdater.sync()
 
         showLoading()
@@ -449,9 +553,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
             try {
 
-                /*
-                 * Actual foreground subscription refresh.
-                 */
                 val result =
                     AngConfigManager
                         .updateConfigViaSubAll()
@@ -473,14 +574,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                             true
                         )
 
-                        /*
-                         * Normal MojAzad startup:
-                         *
-                         * Ping all
-                         * -> Sort
-                         * -> Fastest server
-                         * -> Auto-connect.
-                         */
                         mainViewModel
                             .testAllRealPing(
                                 autoConnectAfterFinish = true
@@ -488,10 +581,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                     } else {
 
-                        /*
-                         * Failed/no-config refresh:
-                         * keep previously stored servers.
-                         */
                         mainViewModel
                             .reloadServerList()
                     }
@@ -511,9 +600,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     Dispatchers.Main
                 ) {
 
-                    /*
-                     * Keep old server list on network/update failure.
-                     */
                     mainViewModel
                         .reloadServerList()
 
@@ -598,15 +684,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 )
             }
 
-        /*
-         * MojAzad automatic connection event.
-         *
-         * MainViewModel emits true only after:
-         *
-         * 1. Automatic Ping finished.
-         * 2. Results were sorted.
-         * 3. Fastest valid server was selected.
-         */
         mainViewModel
             .autoConnectBestServerAction
             .observe(this) { shouldConnect ->
@@ -617,20 +694,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     return@observe
                 }
 
-                /*
-                 * Consume the event immediately.
-                 *
-                 * Prevents Activity recreation from
-                 * triggering the connection twice.
-                 */
                 mainViewModel
                     .consumeAutoConnectBestServerAction()
 
-                /*
-                 * If VPN is already running,
-                 * restart it on the newly-selected
-                 * fastest server.
-                 */
                 if (
                     mainViewModel
                         .isRunning
@@ -643,10 +709,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     SettingsManager.isVpnMode()
                 ) {
 
-                    /*
-                     * First VPN connection may require
-                     * Android's official VPN permission.
-                     */
                     val intent =
                         VpnService.prepare(
                             this
@@ -1233,11 +1295,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 true
             }
 
-            /*
-             * Manual Ping stays manual.
-             *
-             * It does NOT auto-connect.
-             */
             R.id.real_ping_all -> {
 
                 toast(
@@ -1973,7 +2030,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
             R.id.sub_setting ->
 
-                requestActivityLauncher.launch(
+                requestSubSettingLauncher.launch(
                     Intent(
                         this,
                         SubSettingActivity::class.java
