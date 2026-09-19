@@ -93,7 +93,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         )
 
         groupPagerAdapter =
-            GroupPagerAdapter(this, emptyList())
+            GroupPagerAdapter(
+                this,
+                emptyList()
+            )
 
         binding.viewPager.adapter =
             groupPagerAdapter
@@ -117,8 +120,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         /*
          * v2rayNG can contain a default empty subscription.
          *
-         * MojAzad checks whether at least one real
-         * subscription URL exists.
+         * MojAzad checks whether at least one subscription
+         * with a real URL exists.
          */
         val hasValidSubscription =
             MmkvManager.decodeSubscriptions().any {
@@ -127,10 +130,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         /*
          * First launch:
-         * Ask for subscription URL.
+         * Ask user for subscription URL.
          *
          * Later launches:
-         * Refresh -> Ping -> Sort -> Select fastest -> Connect.
+         * Refresh subscription
+         * -> Ping
+         * -> Sort
+         * -> Select fastest server
+         * -> Auto-connect.
          */
         if (!hasValidSubscription) {
             showMojAzadActivationDialog()
@@ -146,13 +153,19 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     /**
      * MojAzad first-run activation.
+     *
+     * Important:
+     * after subscription import succeeds,
+     * explicitly switch MainViewModel to the new
+     * MojAzad subscription before starting Ping.
      */
     private fun showMojAzadActivationDialog() {
 
         val input =
             AppCompatEditText(this).apply {
 
-                hint = "لینک اشتراک موج آزاد"
+                hint =
+                    "لینک اشتراک موج آزاد"
 
                 inputType =
                     InputType.TYPE_CLASS_TEXT or
@@ -163,8 +176,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         val dialog =
             AlertDialog.Builder(this)
-                .setTitle("فعال‌سازی MojAzad")
-                .setMessage("لینک اشتراک خود را وارد کنید")
+                .setTitle(
+                    "فعال‌سازی MojAzad"
+                )
+                .setMessage(
+                    "لینک اشتراک خود را وارد کنید"
+                )
                 .setView(input)
                 .setCancelable(false)
                 .setPositiveButton(
@@ -176,7 +193,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         dialog.setOnShowListener {
 
             dialog
-                .getButton(AlertDialog.BUTTON_POSITIVE)
+                .getButton(
+                    AlertDialog.BUTTON_POSITIVE
+                )
                 .setOnClickListener {
 
                     val subscriptionUrl =
@@ -193,7 +212,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         return@setOnClickListener
                     }
 
-                    if (!Utils.isValidUrl(subscriptionUrl)) {
+                    if (
+                        !Utils.isValidUrl(
+                            subscriptionUrl
+                        )
+                    ) {
 
                         input.error =
                             "لینک اشتراک معتبر نیست"
@@ -201,7 +224,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         return@setOnClickListener
                     }
 
-                    if (!Utils.isValidSubUrl(subscriptionUrl)) {
+                    if (
+                        !Utils.isValidSubUrl(
+                            subscriptionUrl
+                        )
+                    ) {
 
                         input.error =
                             "لینک اشتراک معتبر نیست"
@@ -209,6 +236,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         return@setOnClickListener
                     }
 
+                    /*
+                     * Local/internal subscription ID.
+                     *
+                     * This ID is unrelated to the token/UUID
+                     * contained inside the customer's URL.
+                     */
                     val subId =
                         Utils.getUuid()
 
@@ -225,16 +258,21 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                 true
 
                             /*
-                             * Automatic subscription update:
-                             * ON every 60 minutes.
+                             * Background auto-update ON.
                              */
                             autoUpdate =
                                 true
 
+                            /*
+                             * Update subscription every 60 minutes.
+                             */
                             updateInterval =
                                 60L
                         }
 
+                    /*
+                     * Save subscription.
+                     */
                     MmkvManager.encodeSubscription(
                         subId,
                         subscription
@@ -250,12 +288,20 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                         try {
 
+                            /*
+                             * Download and import subscription immediately.
+                             */
                             val result =
                                 AngConfigManager
                                     .updateConfigViaSubAll()
 
-                            if (result.successCount > 0) {
+                            if (
+                                result.successCount > 0
+                            ) {
 
+                                /*
+                                 * Schedule periodic background updates.
+                                 */
                                 SubscriptionUpdater.syncOne(
                                     subId = subId
                                 )
@@ -264,21 +310,40 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                     Dispatchers.Main
                                 ) {
 
-                                    setupGroupTab()
-
+                                    /*
+                                     * IMPORTANT FIX:
+                                     *
+                                     * On first launch the ViewModel may still
+                                     * point to v2rayNG's empty/default group.
+                                     *
+                                     * Explicitly switch to the newly-created
+                                     * MojAzad subscription.
+                                     *
+                                     * subscriptionIdChanged() also reloads
+                                     * the server list into serversCache.
+                                     */
                                     mainViewModel
-                                        .reloadServerList()
+                                        .subscriptionIdChanged(
+                                            subId
+                                        )
+
+                                    /*
+                                     * Now rebuild/select group tabs.
+                                     */
+                                    setupGroupTab()
 
                                     refreshGroupTabTitles(
                                         true
                                     )
 
                                     /*
-                                     * First activation:
+                                     * Now serversCache contains the MojAzad
+                                     * servers from the newly-added subscription.
                                      *
-                                     * Ping all servers.
-                                     * When all tests finish:
-                                     * sort -> select fastest -> connect.
+                                     * Ping all
+                                     * -> Sort
+                                     * -> Select fastest valid server
+                                     * -> Auto-connect.
                                      */
                                     mainViewModel
                                         .testAllRealPing(
@@ -294,6 +359,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                             } else {
 
+                                /*
+                                 * Subscription failed.
+                                 *
+                                 * Remove the newly-created invalid subscription.
+                                 */
                                 MmkvManager
                                     .removeSubscription(
                                         subId
@@ -315,6 +385,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                         } catch (e: Exception) {
 
+                            /*
+                             * Remove invalid subscription if activation failed.
+                             */
                             MmkvManager
                                 .removeSubscription(
                                     subId
@@ -347,21 +420,25 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     /**
-     * Refresh whenever MojAzad starts.
+     * Refresh subscriptions whenever MojAzad starts.
      *
      * Foreground startup:
      *
-     * Subscription update
+     * Update subscription
+     * -> Reload servers
      * -> Ping
      * -> Sort
      * -> Select fastest valid server
      * -> Auto-connect.
      *
-     * 60-minute background subscription update
-     * stays independent and does not trigger ping.
+     * Background 60-minute subscription update:
+     * update only, without foreground Ping.
      */
     private fun refreshMojAzadSubscription() {
 
+        /*
+         * Keep WorkManager periodic subscriptions scheduled.
+         */
         SubscriptionUpdater.sync()
 
         showLoading()
@@ -372,6 +449,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
             try {
 
+                /*
+                 * Actual foreground subscription refresh.
+                 */
                 val result =
                     AngConfigManager
                         .updateConfigViaSubAll()
@@ -380,7 +460,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     Dispatchers.Main
                 ) {
 
-                    if (result.configCount > 0) {
+                    if (
+                        result.configCount > 0
+                    ) {
 
                         setupGroupTab()
 
@@ -392,10 +474,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         )
 
                         /*
-                         * Startup automatic ping.
+                         * Normal MojAzad startup:
                          *
-                         * MainViewModel will wait until
-                         * every ping test has finished.
+                         * Ping all
+                         * -> Sort
+                         * -> Fastest server
+                         * -> Auto-connect.
                          */
                         mainViewModel
                             .testAllRealPing(
@@ -404,6 +488,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                     } else {
 
+                        /*
+                         * Failed/no-config refresh:
+                         * keep previously stored servers.
+                         */
                         mainViewModel
                             .reloadServerList()
                     }
@@ -423,6 +511,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     Dispatchers.Main
                 ) {
 
+                    /*
+                     * Keep old server list on network/update failure.
+                     */
                     mainViewModel
                         .reloadServerList()
 
@@ -444,12 +535,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             )
 
         binding.drawerLayout
-            .addDrawerListener(toggle)
+            .addDrawerListener(
+                toggle
+            )
 
         toggle.syncState()
 
         binding.navView
-            .setNavigationItemSelectedListener(this)
+            .setNavigationItemSelectedListener(
+                this
+            )
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -471,12 +566,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                     } else {
 
-                        isEnabled = false
+                        isEnabled =
+                            false
 
                         onBackPressedDispatcher
                             .onBackPressed()
 
-                        isEnabled = true
+                        isEnabled =
+                            true
                     }
                 }
             }
@@ -502,32 +599,37 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
 
         /*
-         * MojAzad auto-connect event.
+         * MojAzad automatic connection event.
          *
-         * MainViewModel sends this only after:
+         * MainViewModel emits true only after:
          *
-         * 1. All automatic ping tests have finished.
-         * 2. Servers have been sorted.
-         * 3. The fastest valid server has been selected.
+         * 1. Automatic Ping finished.
+         * 2. Results were sorted.
+         * 3. Fastest valid server was selected.
          */
         mainViewModel
             .autoConnectBestServerAction
             .observe(this) { shouldConnect ->
 
-                if (shouldConnect != true) {
+                if (
+                    shouldConnect != true
+                ) {
                     return@observe
                 }
 
                 /*
-                 * Consume immediately so this event
-                 * cannot be triggered again accidentally.
+                 * Consume the event immediately.
+                 *
+                 * Prevents Activity recreation from
+                 * triggering the connection twice.
                  */
                 mainViewModel
                     .consumeAutoConnectBestServerAction()
 
                 /*
-                 * If already connected, restart the VPN
-                 * with the newly-selected fastest server.
+                 * If VPN is already running,
+                 * restart it on the newly-selected
+                 * fastest server.
                  */
                 if (
                     mainViewModel
@@ -542,20 +644,26 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 ) {
 
                     /*
-                     * On the first VPN connection,
-                     * Android may request VPN permission.
+                     * First VPN connection may require
+                     * Android's official VPN permission.
                      */
                     val intent =
-                        VpnService.prepare(this)
+                        VpnService.prepare(
+                            this
+                        )
 
-                    if (intent == null) {
+                    if (
+                        intent == null
+                    ) {
 
                         startV2Ray()
 
                     } else {
 
                         requestVpnPermission
-                            .launch(intent)
+                            .launch(
+                                intent
+                            )
                     }
 
                 } else {
@@ -568,19 +676,26 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             .startListenBroadcast()
 
         mainViewModel
-            .initAssets(assets)
+            .initAssets(
+                assets
+            )
     }
 
     private fun setupGroupTab() {
 
         val groups =
             mainViewModel
-                .getSubscriptions(this)
+                .getSubscriptions(
+                    this
+                )
 
         groupPagerAdapter
-            .update(groups)
+            .update(
+                groups
+            )
 
-        tabMediator?.detach()
+        tabMediator
+            ?.detach()
 
         tabMediator =
             TabLayoutMediator(
@@ -590,7 +705,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                 groupPagerAdapter
                     .groups
-                    .getOrNull(position)
+                    .getOrNull(
+                        position
+                    )
                     ?.let {
 
                         tab.text =
@@ -601,21 +718,28 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     }
 
             }.also {
+
                 it.attach()
             }
 
         val targetIndex =
             groups
                 .indexOfFirst {
+
                     it.id ==
                         mainViewModel.subscriptionId
                 }
                 .takeIf {
+
                     it >= 0
                 }
-                ?: (groups.size - 1)
+                ?: (
+                    groups.size - 1
+                )
 
-        if (targetIndex >= 0) {
+        if (
+            targetIndex >= 0
+        ) {
 
             binding.viewPager
                 .setCurrentItem(
@@ -627,7 +751,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.tabGroup.isVisible =
             groups.size > 1
 
-        refreshGroupTabTitles(true)
+        refreshGroupTabTitles(
+            true
+        )
     }
 
     fun refreshGroupTabTitles(
@@ -642,48 +768,58 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     .isEmpty()
             ) {
 
-                groupPagerAdapter.groups
+                groupPagerAdapter
+                    .groups
 
             } else {
 
                 groupPagerAdapter
                     .groups
                     .filter {
+
                         it.id ==
                             mainViewModel
                                 .subscriptionId
                     }
             }
 
-        groupsToRefresh.forEach { group ->
+        groupsToRefresh
+            .forEach { group ->
 
-            if (group.id.isEmpty()) {
-                return@forEach
-            }
+                if (
+                    group.id.isEmpty()
+                ) {
+                    return@forEach
+                }
 
-            val tabIndex =
-                groupPagerAdapter
-                    .groups
-                    .indexOfFirst {
-                        it.id ==
-                            group.id
-                    }
+                val tabIndex =
+                    groupPagerAdapter
+                        .groups
+                        .indexOfFirst {
 
-            if (tabIndex >= 0) {
+                            it.id ==
+                                group.id
+                        }
 
-                val count =
-                    MmkvManager
-                        .decodeServerList(
-                            group.id
+                if (
+                    tabIndex >= 0
+                ) {
+
+                    val count =
+                        MmkvManager
+                            .decodeServerList(
+                                group.id
+                            )
+                            .size
+
+                    binding.tabGroup
+                        .getTabAt(
+                            tabIndex
                         )
-                        .size
-
-                binding.tabGroup
-                    .getTabAt(tabIndex)
-                    ?.text =
-                    "${group.remarks} ($count)"
+                        ?.text =
+                        "${group.remarks} ($count)"
+                }
             }
-        }
     }
 
     private fun handleFabAction() {
@@ -700,23 +836,31 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         ) {
 
             CoreServiceManager
-                .stopVService(this)
+                .stopVService(
+                    this
+                )
 
         } else if (
             SettingsManager.isVpnMode()
         ) {
 
             val intent =
-                VpnService.prepare(this)
+                VpnService.prepare(
+                    this
+                )
 
-            if (intent == null) {
+            if (
+                intent == null
+            ) {
 
                 startV2Ray()
 
             } else {
 
                 requestVpnPermission
-                    .launch(intent)
+                    .launch(
+                        intent
+                    )
             }
 
         } else {
@@ -774,7 +918,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
 
         CoreServiceManager
-            .startVService(this)
+            .startVService(
+                this
+            )
     }
 
     fun restartV2Ray() {
@@ -786,12 +932,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         ) {
 
             CoreServiceManager
-                .stopVService(this)
+                .stopVService(
+                    this
+                )
         }
 
         lifecycleScope.launch {
 
-            delay(500)
+            delay(
+                500
+            )
 
             startV2Ray()
         }
@@ -810,7 +960,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         isRunning: Boolean
     ) {
 
-        if (isLoading) {
+        if (
+            isLoading
+        ) {
 
             binding.fab
                 .setImageResource(
@@ -820,7 +972,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             return
         }
 
-        if (isRunning) {
+        if (
+            isRunning
+        ) {
 
             binding.fab
                 .setImageResource(
@@ -908,7 +1062,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 R.id.search_view
             )
 
-        if (searchItem != null) {
+        if (
+            searchItem != null
+        ) {
 
             val searchView =
                 searchItem.actionView
@@ -942,107 +1098,137 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 .setOnCloseListener {
 
                     mainViewModel
-                        .filterConfig("")
+                        .filterConfig(
+                            ""
+                        )
 
                     false
                 }
         }
 
         return super
-            .onCreateOptionsMenu(menu)
+            .onCreateOptionsMenu(
+                menu
+            )
     }
 
     override fun onOptionsItemSelected(
         item: MenuItem
     ) =
-        when (item.itemId) {
+        when (
+            item.itemId
+        ) {
 
             R.id.import_qrcode -> {
+
                 importQRcode()
                 true
             }
 
             R.id.import_clipboard -> {
+
                 importClipboard()
                 true
             }
 
             R.id.import_local -> {
+
                 importConfigLocal()
                 true
             }
 
             R.id.import_manually_policy_group -> {
+
                 importManually(
                     EConfigType.POLICYGROUP.value
                 )
+
                 true
             }
 
             R.id.import_manually_proxy_chain -> {
+
                 importManually(
                     EConfigType.PROXYCHAIN.value
                 )
+
                 true
             }
 
             R.id.import_manually_vmess -> {
+
                 importManually(
                     EConfigType.VMESS.value
                 )
+
                 true
             }
 
             R.id.import_manually_vless -> {
+
                 importManually(
                     EConfigType.VLESS.value
                 )
+
                 true
             }
 
             R.id.import_manually_ss -> {
+
                 importManually(
                     EConfigType.SHADOWSOCKS.value
                 )
+
                 true
             }
 
             R.id.import_manually_socks -> {
+
                 importManually(
                     EConfigType.SOCKS.value
                 )
+
                 true
             }
 
             R.id.import_manually_http -> {
+
                 importManually(
                     EConfigType.HTTP.value
                 )
+
                 true
             }
 
             R.id.import_manually_trojan -> {
+
                 importManually(
                     EConfigType.TROJAN.value
                 )
+
                 true
             }
 
             R.id.import_manually_wireguard -> {
+
                 importManually(
                     EConfigType.WIREGUARD.value
                 )
+
                 true
             }
 
             R.id.import_manually_hysteria2 -> {
+
                 importManually(
                     EConfigType.HYSTERIA2.value
                 )
+
                 true
             }
 
             R.id.export_all -> {
+
                 exportAll()
                 true
             }
@@ -1050,7 +1236,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             /*
              * Manual Ping stays manual.
              *
-             * It will NOT automatically connect.
+             * It does NOT auto-connect.
              */
             R.id.real_ping_all -> {
 
@@ -1070,42 +1256,52 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
 
             R.id.service_restart -> {
+
                 restartV2Ray()
                 true
             }
 
             R.id.del_all_config -> {
+
                 delAllConfig()
                 true
             }
 
             R.id.del_duplicate_config -> {
+
                 delDuplicateConfig()
                 true
             }
 
             R.id.del_invalid_config -> {
+
                 delInvalidConfig()
                 true
             }
 
             R.id.sort_by_test_results -> {
+
                 sortByTestResults()
                 true
             }
 
             R.id.sub_update -> {
+
                 importConfigViaSub()
                 true
             }
 
             R.id.locate_selected_config -> {
+
                 locateSelectedServer()
                 true
             }
 
             else ->
-                super.onOptionsItemSelected(item)
+
+                super.onOptionsItemSelected(
+                    item
+                )
         }
 
     private fun importManually(
@@ -1170,7 +1366,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         launchQRCodeScanner { scanResult ->
 
-            if (scanResult != null) {
+            if (
+                scanResult != null
+            ) {
 
                 importBatchConfig(
                     scanResult
@@ -1186,7 +1384,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         try {
 
             val clipboard =
-                Utils.getClipboard(this)
+                Utils.getClipboard(
+                    this
+                )
 
             importBatchConfig(
                 clipboard
@@ -1229,7 +1429,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                             true
                         )
 
-                delay(500L)
+                delay(
+                    500L
+                )
 
                 withContext(
                     Dispatchers.Main
@@ -1253,10 +1455,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         }
 
                         countSub > 0 -> {
+
                             setupGroupTab()
                         }
 
                         else -> {
+
                             toastError(
                                 R.string.toast_failure
                             )
@@ -1320,7 +1524,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 mainViewModel
                     .updateConfigViaSubAll()
 
-            delay(500L)
+            delay(
+                500L
+            )
 
             launch(
                 Dispatchers.Main
@@ -1396,7 +1602,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 Dispatchers.Main
             ) {
 
-                if (ret > 0) {
+                if (
+                    ret > 0
+                ) {
 
                     toast(
                         getString(
@@ -1585,11 +1793,15 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         launchFileChooser { uri ->
 
-            if (uri == null) {
+            if (
+                uri == null
+            ) {
                 return@launchFileChooser
             }
 
-            readContentFromUri(uri)
+            readContentFromUri(
+                uri
+            )
         }
     }
 
@@ -1600,7 +1812,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         try {
 
             contentResolver
-                .openInputStream(uri)
+                .openInputStream(
+                    uri
+                )
                 .use { input ->
 
                     importBatchConfig(
@@ -1647,7 +1861,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         targetSubscriptionId
                 }
 
-        if (targetGroupIndex < 0) {
+        if (
+            targetGroupIndex < 0
+        ) {
 
             toast(
                 R.string
@@ -1733,7 +1949,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             KeyEvent.KEYCODE_BUTTON_B
         ) {
 
-            moveTaskToBack(false)
+            moveTaskToBack(
+                false
+            )
 
             return true
         }
@@ -1749,7 +1967,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         item: MenuItem
     ): Boolean {
 
-        when (item.itemId) {
+        when (
+            item.itemId
+        ) {
 
             R.id.sub_setting ->
 
@@ -1856,7 +2076,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     override fun onDestroy() {
 
-        tabMediator?.detach()
+        tabMediator
+            ?.detach()
 
         super.onDestroy()
     }
