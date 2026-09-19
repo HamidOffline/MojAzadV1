@@ -19,8 +19,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="?attr/colorSurface"
-            android:elevation="0dp"
-            app:elevation="0dp">
+            android:elevation="0dp">
 
             <androidx.appcompat.widget.Toolbar
                 android:id="@+id/toolbar"
@@ -33,21 +32,24 @@
 
         </com.google.android.material.appbar.AppBarLayout>
 
+
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/md_theme_background">
 
+
             <androidx.coordinatorlayout.widget.CoordinatorLayout
                 android:id="@+id/main_content"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@color/md_theme_background">
+                android:layout_height="match_parent">
+
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="vertical">
+
 
                     <com.google.android.material.progressindicator.LinearProgressIndicator
                         android:id="@+id/progress_bar"
@@ -58,6 +60,7 @@
                         app:indicatorColor="@color/md_theme_primary"
                         app:trackColor="@color/md_theme_primaryContainer"
                         app:trackThickness="3dp" />
+
 
                     <com.google.android.material.tabs.TabLayout
                         android:id="@+id/tab_group"
@@ -74,6 +77,49 @@
                         app:tabTextAppearance="@style/TabLayoutTextStyle"
                         app:tabTextColor="?attr/colorOnSurfaceVariant" />
 
+
+                    <!-- MojAzad V2 Connect Button -->
+
+                    <LinearLayout
+                        android:id="@+id/connect_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:background="@color/md_theme_background"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+
+                        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                            android:id="@+id/fab"
+                            android:layout_width="76dp"
+                            android:layout_height="76dp"
+                            android:clickable="true"
+                            android:contentDescription="@string/tasker_start_service"
+                            android:focusable="true"
+                            android:src="@drawable/ic_play_24dp"
+                            app:backgroundTint="@color/color_fab_inactive"
+                            app:borderWidth="0dp"
+                            app:elevation="12dp"
+                            app:maxImageSize="34dp"
+                            app:rippleColor="@color/md_theme_primaryContainer"
+                            app:tint="@color/colorWhite"
+                            app:useCompatPadding="true" />
+
+
+                        <TextView
+                            android:id="@+id/tv_connect_state"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="Connect"
+                            android:textColor="@color/md_theme_onBackground"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+
+                    </LinearLayout>
+
+
                     <androidx.viewpager2.widget.ViewPager2
                         android:id="@+id/view_pager"
                         android:layout_width="match_parent"
@@ -82,6 +128,7 @@
                         android:background="@color/md_theme_background"
                         android:nextFocusRight="@+id/fab"
                         android:scrollbars="vertical" />
+
 
                     <LinearLayout
                         android:id="@+id/layout_test"
@@ -93,20 +140,19 @@
                         android:elevation="6dp"
                         android:focusable="true"
                         android:nextFocusLeft="@+id/view_pager"
-                        android:nextFocusRight="@+id/fab"
-                        android:orientation="vertical"
-                        android:paddingEnd="88dp">
+                        android:orientation="vertical">
+
 
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
                             android:background="@color/divider_color_light" />
 
+
                         <TextView
                             android:id="@+id/tv_test_state"
                             android:layout_width="match_parent"
-                            android:layout_height="0dp"
-                            android:layout_weight="1"
+                            android:layout_height="match_parent"
                             android:gravity="start|center_vertical"
                             android:maxLines="2"
                             android:minLines="1"
@@ -117,43 +163,21 @@
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:textSize="13sp" />
 
+
                     </LinearLayout>
+
 
                 </LinearLayout>
 
-                <FrameLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom|end"
-                    android:layout_marginEnd="18dp"
-                    android:layout_marginBottom="8dp">
-
-                    <com.google.android.material.floatingactionbutton.FloatingActionButton
-                        android:id="@+id/fab"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:clickable="true"
-                        android:contentDescription="@string/tasker_start_service"
-                        android:focusable="true"
-                        android:nextFocusLeft="@+id/layout_test"
-                        android:src="@drawable/ic_play_24dp"
-                        app:backgroundTint="@color/color_fab_active"
-                        app:borderWidth="0dp"
-                        app:elevation="8dp"
-                        app:hoveredFocusedTranslationZ="4dp"
-                        app:maxImageSize="26dp"
-                        app:pressedTranslationZ="6dp"
-                        app:rippleColor="@color/md_theme_primaryContainer"
-                        app:tint="@color/colorWhite"
-                        app:useCompatPadding="true" />
-
-                </FrameLayout>
 
             </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
+
         </RelativeLayout>
 
+
     </LinearLayout>
+
 
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
@@ -166,5 +190,6 @@
         app:itemRippleColor="@color/md_theme_primaryContainer"
         app:itemTextColor="?attr/colorOnSurface"
         app:menu="@menu/menu_drawer" />
+
 
 </androidx.drawerlayout.widget.DrawerLayout>
