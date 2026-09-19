@@ -114,23 +114,87 @@ object AppConfig {
     const val UPLINK = "uplink"
     const val DOWNLINK = "downlink"
 
-    /** URLs for various resources. */
+    /**
+     * URLs for various resources.
+     *
+     * MojAzad GitHub:
+     * https://github.com/HamidOffline/MojAzadV1
+     */
     const val GITHUB_URL = "https://github.com"
     const val GITHUB_RAW_URL = "https://raw.githubusercontent.com"
-    const val GITHUB_DOWNLOAD_URL = "$GITHUB_URL/%s/releases/latest/download"
-    const val ANDROID_PACKAGE_NAME_LIST_URL = "$GITHUB_RAW_URL/2dust/androidpackagenamelist/master/proxy.txt"
-    const val APP_URL = "$GITHUB_URL/2dust/v2rayNG"
-    const val APP_API_URL = "https://api.github.com/repos/2dust/v2rayNG/releases"
-    const val APP_ISSUES_URL = "$APP_URL/issues"
-    const val APP_WIKI_MODE = "$APP_URL/wiki/Mode"
-    const val APP_PRIVACY_POLICY = "$GITHUB_RAW_URL/2dust/v2rayNG/master/CR.md"
-    const val APP_PROMOTION_URL = "aHR0cHM6Ly85LjIzNDQ1Ni54eXovYWJjLmh0bWw="
-    const val TG_CHANNEL_URL = "https://t.me/github_2dust"
-    const val DELAY_TEST_URL = "https://www.gstatic.com/generate_204"
-    const val DELAY_TEST_URL2 = "https://www.google.com/generate_204"
 
-    //    const val IP_API_URL = "https://speed.cloudflare.com/meta"
-    const val IP_API_URL = "https://api.ip.sb/geoip"
+    const val GITHUB_DOWNLOAD_URL =
+        "$GITHUB_URL/%s/releases/latest/download"
+
+    const val ANDROID_PACKAGE_NAME_LIST_URL =
+        "$GITHUB_RAW_URL/2dust/androidpackagenamelist/master/proxy.txt"
+
+    /**
+     * MojAzad main repository.
+     */
+    const val APP_URL =
+        "$GITHUB_URL/HamidOffline/MojAzadV1"
+
+    /**
+     * MojAzad GitHub Releases API.
+     *
+     * CheckUpdateActivity / UpdateCheckerManager will use:
+     *
+     * Stable:
+     * https://api.github.com/repos/HamidOffline/MojAzadV1/releases/latest
+     *
+     * Pre-release:
+     * https://api.github.com/repos/HamidOffline/MojAzadV1/releases
+     */
+    const val APP_API_URL =
+        "https://api.github.com/repos/HamidOffline/MojAzadV1/releases"
+
+    /**
+     * MojAzad GitHub Issues.
+     */
+    const val APP_ISSUES_URL =
+        "$APP_URL/issues"
+
+    /**
+     * Keep v2rayNG original Mode documentation.
+     *
+     * MojAzad currently does not need its own wiki page.
+     */
+    const val APP_WIKI_MODE =
+        "$GITHUB_URL/2dust/v2rayNG/wiki/Mode"
+
+    /**
+     * Keep upstream privacy/legal document for now.
+     *
+     * We can replace this later with MojAzad's own
+     * privacy-policy page/file.
+     */
+    const val APP_PRIVACY_POLICY =
+        "$GITHUB_RAW_URL/2dust/v2rayNG/master/CR.md"
+
+    /**
+     * Original promotion URL.
+     *
+     * We can remove/replace the Promotion menu separately.
+     */
+    const val APP_PROMOTION_URL =
+        "aHR0cHM6Ly85LjIzNDQ1Ni54eXovYWJjLmh0bWw="
+
+    /**
+     * MojAzad Telegram channel.
+     */
+    const val TG_CHANNEL_URL =
+        "https://t.me/MojAzadNet"
+
+    const val DELAY_TEST_URL =
+        "https://www.gstatic.com/generate_204"
+
+    const val DELAY_TEST_URL2 =
+        "https://www.google.com/generate_204"
+
+    // const val IP_API_URL = "https://speed.cloudflare.com/meta"
+    const val IP_API_URL =
+        "https://api.ip.sb/geoip"
 
     /** DNS server addresses. */
     const val DNS_PROXY = "1.1.1.1"
@@ -145,15 +209,25 @@ object AppConfig {
     const val GEOSITE_DAT = "geosite.dat"
     const val GEOIP_DAT = "geoip.dat"
     const val GEOIP_ONLY_CN_PRIVATE_DAT = "geoip-only-cn-private.dat"
-    const val GEOIP_ONLY_CN_PRIVATE_URL = "$GITHUB_RAW_URL/Loyalsoldier/geoip/release/$GEOIP_ONLY_CN_PRIVATE_DAT"
+
+    const val GEOIP_ONLY_CN_PRIVATE_URL =
+        "$GITHUB_RAW_URL/Loyalsoldier/geoip/release/$GEOIP_ONLY_CN_PRIVATE_DAT"
 
     /** Ports and addresses for various services. */
     const val PORT_LOCAL_DNS = "10853"
     const val PORT_SOCKS = "10808"
-    const val WIREGUARD_LOCAL_ADDRESS_V4 = "172.16.0.2/32"
-    const val WIREGUARD_LOCAL_ADDRESS_V6 = "2606:4700:110:8f81:d551:a0:532e:a2b3/128"
-    const val WIREGUARD_LOCAL_MTU = "1420"
-    const val LOOPBACK = "127.0.0.1"
+
+    const val WIREGUARD_LOCAL_ADDRESS_V4 =
+        "172.16.0.2/32"
+
+    const val WIREGUARD_LOCAL_ADDRESS_V6 =
+        "2606:4700:110:8f81:d551:a0:532e:a2b3/128"
+
+    const val WIREGUARD_LOCAL_MTU =
+        "1420"
+
+    const val LOOPBACK =
+        "127.0.0.1"
 
     /** Message constants for communication. */
     const val MSG_REGISTER_CLIENT = 1
@@ -175,8 +249,11 @@ object AppConfig {
     const val MSG_MEASURE_CONFIG_FINISH = 74
 
     /** Notification channel IDs and names. */
-    const val RAY_NG_CHANNEL_ID = "RAY_NG_M_CH_ID"
-    const val RAY_NG_CHANNEL_NAME = "v2rayNG Background Service"
+    const val RAY_NG_CHANNEL_ID =
+        "RAY_NG_M_CH_ID"
+
+    const val RAY_NG_CHANNEL_NAME =
+        "v2rayNG Background Service"
 
     /** Protocols Scheme **/
     const val VMESS = "vmess://"
@@ -194,31 +271,49 @@ object AppConfig {
     const val HYSTERIA2 = "hysteria2://"
     const val HY2 = "hy2://"
 
-    /** Give a good name to this, IDK*/
+    /** Give a good name to this, IDK */
     const val VPN = "VPN"
     const val VPN_MTU = 1500
 
     /** Root (system-wide) mode runtime constants. */
     const val ROOT_RUNTIME_DIR = "root"
     const val ROOT_IPTABLES_CHAIN = "V2RAY_NG"
-    const val ROOT_FWMARK = 255            // defensive RETURN tag; hev's only upstream socket is loopback (already bypassed)
-    const val ROOT_MARK_ROUTE = 1          // packets we want pushed into the tun device
+
+    // defensive RETURN tag; hev's only upstream socket is loopback (already bypassed)
+    const val ROOT_FWMARK = 255
+
+    // packets we want pushed into the tun device
+    const val ROOT_MARK_ROUTE = 1
+
     const val ROOT_ROUTE_TABLE = 2024
     const val ROOT_RULE_PRIORITY = 1000
     const val ROOT_TUN_NAME = "v2raytun0"
     const val ROOT_TUN_ADDR_V4 = "198.18.0.1/15"
     const val ROOT_TUN_ADDR_V6 = "fdfe:dcba:9876::1/64"
 
-    // hev-socks5-tunnel run as a standalone root binary (reuses the same project already
-    // bundled for the VPN hev path; distinct filename from the JNI lib to avoid collision).
+    // hev-socks5-tunnel run as a standalone root binary
     const val ROOT_TUN2SOCKS_BIN = "libhevsockstun.so"
-    const val ROOT_FWD_CHAIN = "V2RAY_NG_FWD"   // FORWARD chain for LAN/tethering sharing
-    const val ROOT_DNS_CHAIN = "V2RAY_NG_DNS"   // nat chain for tethered-client DNS DNAT
-    const val ROOT_V6_CHAIN = "V2RAY_NG6"       // ip6tables filter/OUTPUT chain: blackhole native IPv6 when it isn't tunneled
-    const val ROOT_V6_FWD_CHAIN = "V2RAY_NG6_FWD" // ip6tables FORWARD chain: route or reject tethered clients' native IPv6
-    const val ROOT_V6_PRE_CHAIN = "V2RAY_NG6_PRE" // ip6tables mangle/PREROUTING chain: mark forwarded clients' IPv6 into the tun
-    const val ROOT_LAN_DNS = "1.1.1.1"          // fallback resolver for tethered clients when no plain-IPv4 DNS is configured
-    const val ROOT_OOM_SCORE = "-1000"          // oom_score_adj that makes the LMK never kill us
+
+    // FORWARD chain for LAN/tethering sharing
+    const val ROOT_FWD_CHAIN = "V2RAY_NG_FWD"
+
+    // nat chain for tethered-client DNS DNAT
+    const val ROOT_DNS_CHAIN = "V2RAY_NG_DNS"
+
+    // ip6tables filter/OUTPUT chain
+    const val ROOT_V6_CHAIN = "V2RAY_NG6"
+
+    // ip6tables FORWARD chain
+    const val ROOT_V6_FWD_CHAIN = "V2RAY_NG6_FWD"
+
+    // ip6tables mangle/PREROUTING chain
+    const val ROOT_V6_PRE_CHAIN = "V2RAY_NG6_PRE"
+
+    // fallback resolver for tethered clients
+    const val ROOT_LAN_DNS = "1.1.1.1"
+
+    // oom_score_adj
+    const val ROOT_OOM_SCORE = "-1000"
 
     /** hev-sock5-tunnel read-write-timeout value */
     const val HEVTUN_RW_TIMEOUT = "300,60"
@@ -232,16 +327,21 @@ object AppConfig {
     const val DNS_CISCO_SSE_DOMAIN = "dns.sse.cisco.com"
     const val DNS_CISCO_UMBRELLA_DOMAIN = "dns.umbrella.com"
     const val DNS_CLOUDFLARE_ONE_DOMAIN = "one.one.one.one"
-    const val DNS_CLOUDFLARE_ONEDOT_DNS_DOMAIN = "1dot1dot1dot1.cloudflare-dns.com"
-    const val DNS_CLOUDFLARE_DNS_COM_DOMAIN = "dns.cloudflare.com"
-    const val DNS_CLOUDFLARE_DNS_DOMAIN = "cloudflare-dns.com"
-    const val DNS_CLOUDFLARE_WARP_DOMAIN = "engage.cloudflareclient.com"
+    const val DNS_CLOUDFLARE_ONEDOT_DNS_DOMAIN =
+        "1dot1dot1dot1.cloudflare-dns.com"
+    const val DNS_CLOUDFLARE_DNS_COM_DOMAIN =
+        "dns.cloudflare.com"
+    const val DNS_CLOUDFLARE_DNS_DOMAIN =
+        "cloudflare-dns.com"
+    const val DNS_CLOUDFLARE_WARP_DOMAIN =
+        "engage.cloudflareclient.com"
     const val DNS_DNSPOD_DOH_DOMAIN = "doh.pub"
     const val DNS_DNSPOD_DOT_DOMAIN = "dot.pub"
     const val DNS_GOOGLE_DOMAIN = "dns.google"
     const val DNS_QUAD9_DOMAIN = "dns.quad9.net"
     const val DNS_SB_DOMAIN = "dns.sb"
-    const val DNS_YANDEX_DOMAIN = "common.dot.dns.yandex.net"
+    const val DNS_YANDEX_DOMAIN =
+        "common.dot.dns.yandex.net"
 
     const val DEFAULT_PORT = 443
     const val DEFAULT_SECURITY = "auto"
@@ -253,75 +353,170 @@ object AppConfig {
 
     const val UNIDENTIFIED_PACKAGE = "__unknown_app__"
 
-    val DNS_ALIDNS_ADDRESSES = arrayListOf("223.5.5.5", "223.6.6.6", "2400:3200::1", "2400:3200:baba::1")
-    val DNS_CISCO_SSE_ADDRESSES = arrayListOf("208.67.220.220", "208.67.222.222", "2620:119:35::35", "2620:119:53::53")
-    val DNS_CISCO_UMBRELLA_ADDRESSES = arrayListOf("208.67.220.220", "208.67.222.222", "2620:119:35::35", "2620:119:53::53")
-    val DNS_CLOUDFLARE_ONE_ADDRESSES = arrayListOf("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001")
-    val DNS_CLOUDFLARE_ONEDOT_DNS_ADDRESSES = arrayListOf("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001")
-    val DNS_CLOUDFLARE_DNS_COM_ADDRESSES = arrayListOf("162.159.61.8", "172.64.41.8", "2a06:98c1:52::8", "2803:f800:53::8")
-    val DNS_CLOUDFLARE_DNS_ADDRESSES = arrayListOf("104.16.248.249", "104.16.249.249", "2606:4700::6810:f8f9", "2606:4700::6810:f9f9")
-    val DNS_CLOUDFLARE_WARP_ADDRESSES = arrayListOf("162.159.192.1", "2606:4700:d0::a29f:c001")
-    val DNS_DNSPOD_DOH_ADDRESSES = arrayListOf("1.12.12.12", "120.53.53.53")
-    val DNS_DNSPOD_DOT_ADDRESSES = arrayListOf("1.12.12.12", "120.53.53.53")
-    val DNS_GOOGLE_ADDRESSES = arrayListOf("8.8.8.8", "8.8.4.4", "2001:4860:4860::8888", "2001:4860:4860::8844")
-    val DNS_QUAD9_ADDRESSES = arrayListOf("9.9.9.9", "149.112.112.112", "2620:fe::fe", "2620:fe::9")
-    val DNS_SB_ADDRESSES = arrayListOf("45.11.45.11", "185.222.222.222", "2a09::", "2a11::")
-    val DNS_YANDEX_ADDRESSES = arrayListOf("77.88.8.8", "77.88.8.1", "2a02:6b8::feed:0ff", "2a02:6b8:0:1::feed:0ff")
+    val DNS_ALIDNS_ADDRESSES =
+        arrayListOf(
+            "223.5.5.5",
+            "223.6.6.6",
+            "2400:3200::1",
+            "2400:3200:baba::1"
+        )
 
-    //minimum list https://serverfault.com/a/304791
-    val ROUTED_IP_LIST = arrayListOf(
-        "0.0.0.0/5",
-        "8.0.0.0/7",
-        "11.0.0.0/8",
-        "12.0.0.0/6",
-        "16.0.0.0/4",
-        "32.0.0.0/3",
-        "64.0.0.0/2",
-        "128.0.0.0/3",
-        "160.0.0.0/5",
-        "168.0.0.0/6",
-        "172.0.0.0/12",
-        "172.32.0.0/11",
-        "172.64.0.0/10",
-        "172.128.0.0/9",
-        "173.0.0.0/8",
-        "174.0.0.0/7",
-        "176.0.0.0/4",
-        "192.0.0.0/9",
-        "192.128.0.0/11",
-        "192.160.0.0/13",
-        "192.169.0.0/16",
-        "192.170.0.0/15",
-        "192.172.0.0/14",
-        "192.176.0.0/12",
-        "192.192.0.0/10",
-        "193.0.0.0/8",
-        "194.0.0.0/7",
-        "196.0.0.0/6",
-        "200.0.0.0/5",
-        "208.0.0.0/4",
-        "240.0.0.0/4"
-    )
+    val DNS_CISCO_SSE_ADDRESSES =
+        arrayListOf(
+            "208.67.220.220",
+            "208.67.222.222",
+            "2620:119:35::35",
+            "2620:119:53::53"
+        )
 
-    val PRIVATE_IP_LIST = arrayListOf(
-        "0.0.0.0/8",
-        "10.0.0.0/8",
-        "127.0.0.0/8",
-        "172.16.0.0/12",
-        "192.168.0.0/16",
-        "169.254.0.0/16",
-        "224.0.0.0/4"
-    )
+    val DNS_CISCO_UMBRELLA_ADDRESSES =
+        arrayListOf(
+            "208.67.220.220",
+            "208.67.222.222",
+            "2620:119:35::35",
+            "2620:119:53::53"
+        )
 
-    val GEO_FILES_SOURCES = arrayListOf(
-        "Loyalsoldier/v2ray-rules-dat",
-        "runetfreedom/russia-v2ray-rules-dat",
-        "Chocolate4U/Iran-v2ray-rules"
-    )
+    val DNS_CLOUDFLARE_ONE_ADDRESSES =
+        arrayListOf(
+            "1.1.1.1",
+            "1.0.0.1",
+            "2606:4700:4700::1111",
+            "2606:4700:4700::1001"
+        )
 
-    val BUILTIN_OUTBOUND_TAGS = setOf(
-        TAG_PROXY,
-        TAG_DIRECT,
-        TAG_BLOCKED,
-    )
+    val DNS_CLOUDFLARE_ONEDOT_DNS_ADDRESSES =
+        arrayListOf(
+            "1.1.1.1",
+            "1.0.0.1",
+            "2606:4700:4700::1111",
+            "2606:4700:4700::1001"
+        )
+
+    val DNS_CLOUDFLARE_DNS_COM_ADDRESSES =
+        arrayListOf(
+            "162.159.61.8",
+            "172.64.41.8",
+            "2a06:98c1:52::8",
+            "2803:f800:53::8"
+        )
+
+    val DNS_CLOUDFLARE_DNS_ADDRESSES =
+        arrayListOf(
+            "104.16.248.249",
+            "104.16.249.249",
+            "2606:4700::6810:f8f9",
+            "2606:4700::6810:f9f9"
+        )
+
+    val DNS_CLOUDFLARE_WARP_ADDRESSES =
+        arrayListOf(
+            "162.159.192.1",
+            "2606:4700:d0::a29f:c001"
+        )
+
+    val DNS_DNSPOD_DOH_ADDRESSES =
+        arrayListOf(
+            "1.12.12.12",
+            "120.53.53.53"
+        )
+
+    val DNS_DNSPOD_DOT_ADDRESSES =
+        arrayListOf(
+            "1.12.12.12",
+            "120.53.53.53"
+        )
+
+    val DNS_GOOGLE_ADDRESSES =
+        arrayListOf(
+            "8.8.8.8",
+            "8.8.4.4",
+            "2001:4860:4860::8888",
+            "2001:4860:4860::8844"
+        )
+
+    val DNS_QUAD9_ADDRESSES =
+        arrayListOf(
+            "9.9.9.9",
+            "149.112.112.112",
+            "2620:fe::fe",
+            "2620:fe::9"
+        )
+
+    val DNS_SB_ADDRESSES =
+        arrayListOf(
+            "45.11.45.11",
+            "185.222.222.222",
+            "2a09::",
+            "2a11::"
+        )
+
+    val DNS_YANDEX_ADDRESSES =
+        arrayListOf(
+            "77.88.8.8",
+            "77.88.8.1",
+            "2a02:6b8::feed:0ff",
+            "2a02:6b8:0:1::feed:0ff"
+        )
+
+    // minimum list https://serverfault.com/a/304791
+    val ROUTED_IP_LIST =
+        arrayListOf(
+            "0.0.0.0/5",
+            "8.0.0.0/7",
+            "11.0.0.0/8",
+            "12.0.0.0/6",
+            "16.0.0.0/4",
+            "32.0.0.0/3",
+            "64.0.0.0/2",
+            "128.0.0.0/3",
+            "160.0.0.0/5",
+            "168.0.0.0/6",
+            "172.0.0.0/12",
+            "172.32.0.0/11",
+            "172.64.0.0/10",
+            "172.128.0.0/9",
+            "173.0.0.0/8",
+            "174.0.0.0/7",
+            "176.0.0.0/4",
+            "192.0.0.0/9",
+            "192.128.0.0/11",
+            "192.160.0.0/13",
+            "192.169.0.0/16",
+            "192.170.0.0/15",
+            "192.172.0.0/14",
+            "192.176.0.0/12",
+            "192.192.0.0/10",
+            "193.0.0.0/8",
+            "194.0.0.0/7",
+            "196.0.0.0/6",
+            "200.0.0.0/5",
+            "208.0.0.0/4",
+            "240.0.0.0/4"
+        )
+
+    val PRIVATE_IP_LIST =
+        arrayListOf(
+            "0.0.0.0/8",
+            "10.0.0.0/8",
+            "127.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "169.254.0.0/16",
+            "224.0.0.0/4"
+        )
+
+    val GEO_FILES_SOURCES =
+        arrayListOf(
+            "Loyalsoldier/v2ray-rules-dat",
+            "runetfreedom/russia-v2ray-rules-dat",
+            "Chocolate4U/Iran-v2ray-rules"
+        )
+
+    val BUILTIN_OUTBOUND_TAGS =
+        setOf(
+            TAG_PROXY,
+            TAG_DIRECT,
+            TAG_BLOCKED,
+        )
 }
