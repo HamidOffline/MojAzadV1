@@ -115,19 +115,18 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         setupViewModel()
 
         /*
-         * MojAzad onboarding
+         * MojAzad startup behavior:
          *
          * First launch:
-         * Ask the user for their subscription URL.
+         * Ask for the customer's subscription URL.
          *
          * Later launches:
-         * Keep the saved subscription and refresh it automatically.
+         * Immediately refresh the saved subscription.
          */
         if (MmkvManager.decodeSubscriptions().isEmpty()) {
             showMojAzadActivationDialog()
         } else {
-            SubscriptionUpdater.sync()
-            mainViewModel.reloadServerList()
+            refreshMojAzadSubscription()
         }
 
         checkAndRequestPermission(
@@ -137,10 +136,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     /**
-     * First-run MojAzad activation dialog.
+     * First-run MojAzad activation.
      *
-     * The user's subscription URL is stored exactly as entered.
-     * The UUID generated here is only an internal local subscription ID.
+     * The customer's subscription URL is stored exactly as entered.
+     * The generated UUID is only the local v2rayNG/MojAzad subscription ID.
      */
     private fun showMojAzadActivationDialog() {
 
@@ -159,9 +158,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         val dialog =
             AlertDialog.Builder(this)
                 .setTitle("فعال‌سازی MojAzad")
-                .setMessage(
-                    "لینک اشتراک خود را وارد کنید"
-                )
+                .setMessage("لینک اشتراک خود را وارد کنید")
                 .setView(input)
                 .setCancelable(false)
                 .setPositiveButton(
@@ -173,9 +170,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         dialog.setOnShowListener {
 
             dialog
-                .getButton(
-                    AlertDialog.BUTTON_POSITIVE
-                )
+                .getButton(AlertDialog.BUTTON_POSITIVE)
                 .setOnClickListener {
 
                     val subscriptionUrl =
@@ -209,10 +204,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     }
 
                     /*
-                     * Internal MojAzad/v2rayNG subscription ID.
+                     * Local internal subscription ID.
                      *
-                     * This does NOT modify the UUID/token
-                     * contained in the customer's subscription URL.
+                     * This has nothing to do with the UUID/token
+                     * inside the customer's subscription URL.
                      */
                     val subId =
                         Utils.getUuid()
@@ -224,7 +219,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                 "MojAzad"
 
                             /*
-                             * Store the customer's URL
+                             * Keep the customer's subscription URL
                              * exactly as entered.
                              */
                             url =
@@ -237,8 +232,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                 true
 
                             /*
-                             * 24 hours
-                             * expressed in minutes.
+                             * 24 hours in minutes.
                              */
                             updateInterval =
                                 1440L
@@ -260,32 +254,77 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         try {
 
                             /*
-                             * Immediately download/update
-                             * this subscription.
+                             * Actually download/import the subscription now.
                              */
-                            SubscriptionUpdater.syncOne(
-                                subId = subId
-                            )
+                            val result =
+                                AngConfigManager
+                                    .updateConfigViaSubAll()
 
-                            delay(1000L)
+                            if (result.successCount > 0) {
 
-                            withContext(
-                                Dispatchers.Main
-                            ) {
-
-                                setupGroupTab()
-
-                                mainViewModel
-                                    .reloadServerList()
-
-                                hideLoading()
-
-                                toast(
-                                    "اشتراک با موفقیت فعال شد"
+                                /*
+                                 * Schedule future automatic updates.
+                                 */
+                                SubscriptionUpdater.syncOne(
+                                    subId = subId
                                 )
+
+                                withContext(
+                                    Dispatchers.Main
+                                ) {
+
+                                    setupGroupTab()
+
+                                    mainViewModel
+                                        .reloadServerList()
+
+                                    refreshGroupTabTitles(
+                                        true
+                                    )
+
+                                    hideLoading()
+
+                                    toast(
+                                        "اشتراک با موفقیت فعال شد"
+                                    )
+                                }
+
+                            } else {
+
+                                /*
+                                 * Activation failed.
+                                 * Remove the invalid subscription record
+                                 * and ask for the URL again.
+                                 */
+                                MmkvManager
+                                    .removeSubscription(
+                                        subId
+                                    )
+
+                                withContext(
+                                    Dispatchers.Main
+                                ) {
+
+                                    hideLoading()
+
+                                    toast(
+                                        "دریافت اشتراک انجام نشد"
+                                    )
+
+                                    showMojAzadActivationDialog()
+                                }
                             }
 
                         } catch (e: Exception) {
+
+                            /*
+                             * Do not leave a broken subscription
+                             * after a failed first activation.
+                             */
+                            MmkvManager
+                                .removeSubscription(
+                                    subId
+                                )
 
                             LogUtil.e(
                                 AppConfig.TAG,
@@ -299,9 +338,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                                 hideLoading()
 
-                                toastError(
-                                    R.string.toast_failure
+                                toast(
+                                    "دریافت اشتراک انجام نشد"
                                 )
+
+                                showMojAzadActivationDialog()
                             }
                         }
                     }
@@ -309,6 +350,87 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
 
         dialog.show()
+    }
+
+    /**
+     * Refresh subscriptions whenever MojAzad starts.
+     *
+     * Existing server configs are kept available if the refresh fails.
+     */
+    private fun refreshMojAzadSubscription() {
+
+        /*
+         * Keep periodic auto-update tasks synchronized
+         * with the saved subscription settings.
+         */
+        SubscriptionUpdater.sync()
+
+        showLoading()
+
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
+
+            try {
+
+                /*
+                 * Perform an actual subscription refresh now.
+                 */
+                val result =
+                    AngConfigManager
+                        .updateConfigViaSubAll()
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    if (result.configCount > 0) {
+
+                        setupGroupTab()
+
+                        mainViewModel
+                            .reloadServerList()
+
+                        refreshGroupTabTitles(
+                            true
+                        )
+
+                    } else {
+
+                        /*
+                         * Keep displaying the already stored
+                         * server list if nothing new was received.
+                         */
+                        mainViewModel
+                            .reloadServerList()
+                    }
+
+                    hideLoading()
+                }
+
+            } catch (e: Exception) {
+
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "MojAzad startup subscription refresh failed",
+                    e
+                )
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    /*
+                     * A failed refresh must not make
+                     * the existing server list unusable.
+                     */
+                    mainViewModel
+                        .reloadServerList()
+
+                    hideLoading()
+                }
+            }
+        }
     }
 
     private fun setupNavigationDrawer() {
@@ -432,6 +554,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 ?: (groups.size - 1)
 
         if (targetIndex >= 0) {
+
             binding.viewPager
                 .setCurrentItem(
                     targetIndex,
@@ -773,140 +896,92 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         when (item.itemId) {
 
             R.id.import_qrcode -> {
-
                 importQRcode()
-
                 true
             }
 
             R.id.import_clipboard -> {
-
                 importClipboard()
-
                 true
             }
 
             R.id.import_local -> {
-
                 importConfigLocal()
-
                 true
             }
 
             R.id.import_manually_policy_group -> {
-
                 importManually(
-                    EConfigType
-                        .POLICYGROUP
-                        .value
+                    EConfigType.POLICYGROUP.value
                 )
-
                 true
             }
 
             R.id.import_manually_proxy_chain -> {
-
                 importManually(
-                    EConfigType
-                        .PROXYCHAIN
-                        .value
+                    EConfigType.PROXYCHAIN.value
                 )
-
                 true
             }
 
             R.id.import_manually_vmess -> {
-
                 importManually(
-                    EConfigType
-                        .VMESS
-                        .value
+                    EConfigType.VMESS.value
                 )
-
                 true
             }
 
             R.id.import_manually_vless -> {
-
                 importManually(
-                    EConfigType
-                        .VLESS
-                        .value
+                    EConfigType.VLESS.value
                 )
-
                 true
             }
 
             R.id.import_manually_ss -> {
-
                 importManually(
-                    EConfigType
-                        .SHADOWSOCKS
-                        .value
+                    EConfigType.SHADOWSOCKS.value
                 )
-
                 true
             }
 
             R.id.import_manually_socks -> {
-
                 importManually(
-                    EConfigType
-                        .SOCKS
-                        .value
+                    EConfigType.SOCKS.value
                 )
-
                 true
             }
 
             R.id.import_manually_http -> {
-
                 importManually(
-                    EConfigType
-                        .HTTP
-                        .value
+                    EConfigType.HTTP.value
                 )
-
                 true
             }
 
             R.id.import_manually_trojan -> {
-
                 importManually(
-                    EConfigType
-                        .TROJAN
-                        .value
+                    EConfigType.TROJAN.value
                 )
-
                 true
             }
 
             R.id.import_manually_wireguard -> {
-
                 importManually(
-                    EConfigType
-                        .WIREGUARD
-                        .value
+                    EConfigType.WIREGUARD.value
                 )
-
                 true
             }
 
             R.id.import_manually_hysteria2 -> {
-
                 importManually(
-                    EConfigType
-                        .HYSTERIA2
-                        .value
+                    EConfigType.HYSTERIA2.value
                 )
-
                 true
             }
 
             R.id.export_all -> {
-
                 exportAll()
-
                 true
             }
 
@@ -928,59 +1003,42 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
 
             R.id.service_restart -> {
-
                 restartV2Ray()
-
                 true
             }
 
             R.id.del_all_config -> {
-
                 delAllConfig()
-
                 true
             }
 
             R.id.del_duplicate_config -> {
-
                 delDuplicateConfig()
-
                 true
             }
 
             R.id.del_invalid_config -> {
-
                 delInvalidConfig()
-
                 true
             }
 
             R.id.sort_by_test_results -> {
-
                 sortByTestResults()
-
                 true
             }
 
             R.id.sub_update -> {
-
                 importConfigViaSub()
-
                 true
             }
 
             R.id.locate_selected_config -> {
-
                 locateSelectedServer()
-
                 true
             }
 
             else ->
-                super
-                    .onOptionsItemSelected(
-                        item
-                    )
+                super.onOptionsItemSelected(item)
         }
 
     private fun importManually(
@@ -989,17 +1047,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         if (
             createConfigType ==
-            EConfigType
-                .POLICYGROUP
-                .value
+            EConfigType.POLICYGROUP.value
         ) {
 
             startActivity(
                 Intent()
                     .putExtra(
                         "subscriptionId",
-                        mainViewModel
-                            .subscriptionId
+                        mainViewModel.subscriptionId
                     )
                     .setClass(
                         this,
@@ -1009,17 +1064,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         } else if (
             createConfigType ==
-            EConfigType
-                .PROXYCHAIN
-                .value
+            EConfigType.PROXYCHAIN.value
         ) {
 
             startActivity(
                 Intent()
                     .putExtra(
                         "subscriptionId",
-                        mainViewModel
-                            .subscriptionId
+                        mainViewModel.subscriptionId
                     )
                     .setClass(
                         this,
@@ -1037,8 +1089,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     )
                     .putExtra(
                         "subscriptionId",
-                        mainViewModel
-                            .subscriptionId
+                        mainViewModel.subscriptionId
                     )
                     .setClass(
                         this,
@@ -1107,8 +1158,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     AngConfigManager
                         .importBatchConfig(
                             server,
-                            mainViewModel
-                                .subscriptionId,
+                            mainViewModel.subscriptionId,
                             true
                         )
 
@@ -1136,12 +1186,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         }
 
                         countSub > 0 -> {
-
                             setupGroupTab()
                         }
 
                         else -> {
-
                             toastError(
                                 R.string.toast_failure
                             )
