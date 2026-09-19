@@ -35,31 +35,97 @@ import java.util.Collections
 import java.util.regex.PatternSyntaxException
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-    private var serverList = mutableListOf<String>() // MmkvManager.decodeServerList()
-    var subscriptionId: String = MmkvManager.decodeSettingsString(AppConfig.CACHE_SUBSCRIPTION_ID, "").orEmpty()
+
+    private var serverList = mutableListOf<String>()
+
+    var subscriptionId: String =
+        MmkvManager.decodeSettingsString(
+            AppConfig.CACHE_SUBSCRIPTION_ID,
+            ""
+        ).orEmpty()
+
     var keywordFilter = ""
-    val serversCache = mutableListOf<ServersCache>()
-    val isRunning by lazy { MutableLiveData<Boolean>() }
-    val updateListAction by lazy { MutableLiveData<Int>() }
-    val updateTestResultAction by lazy { MutableLiveData<String>() }
+
+    val serversCache =
+        mutableListOf<ServersCache>()
+
+    val isRunning by lazy {
+        MutableLiveData<Boolean>()
+    }
+
+    val updateListAction by lazy {
+        MutableLiveData<Int>()
+    }
+
+    val updateTestResultAction by lazy {
+        MutableLiveData<String>()
+    }
+
+    /*
+     * MojAzad:
+     *
+     * MainActivity observes this.
+     *
+     * true means:
+     * A successful automatic ping has finished,
+     * the best server has been selected,
+     * and the Activity may now connect.
+     */
+    val autoConnectBestServerAction by lazy {
+        MutableLiveData<Boolean>(false)
+    }
+
+    /*
+     * True only for MojAzad's automatic startup/activation ping.
+     *
+     * A manual "Real Ping All" will leave this false,
+     * so manual testing will NOT automatically connect.
+     */
+    private var connectBestServerAfterPing =
+        false
 
     /**
-     * Refer to the official documentation for [registerReceiver](https://developer.android.com/reference/androidx/core/content/ContextCompat#registerReceiver(android.content.Context,android.content.BroadcastReceiver,android.content.IntentFilter,int):
-     * `registerReceiver(Context, BroadcastReceiver, IntentFilter, int)`.
+     * Refer to the official documentation for registerReceiver.
      */
     fun startListenBroadcast() {
-        isRunning.value = false
-        val mFilter = IntentFilter(AppConfig.BROADCAST_ACTION_ACTIVITY)
-        ContextCompat.registerReceiver(getApplication(), mMsgReceiver, mFilter, Utils.receiverFlags())
-        MessageUtil.sendMsg2Service(getApplication(), AppConfig.MSG_REGISTER_CLIENT, "")
+
+        isRunning.value =
+            false
+
+        val mFilter =
+            IntentFilter(
+                AppConfig.BROADCAST_ACTION_ACTIVITY
+            )
+
+        ContextCompat.registerReceiver(
+            getApplication(),
+            mMsgReceiver,
+            mFilter,
+            Utils.receiverFlags()
+        )
+
+        MessageUtil.sendMsg2Service(
+            getApplication(),
+            AppConfig.MSG_REGISTER_CLIENT,
+            ""
+        )
     }
 
     /**
      * Called when the ViewModel is cleared.
      */
     override fun onCleared() {
-        getApplication<AngApplication>().unregisterReceiver(mMsgReceiver)
-        LogUtil.i(AppConfig.TAG, "Main ViewModel is cleared")
+
+        getApplication<AngApplication>()
+            .unregisterReceiver(
+                mMsgReceiver
+            )
+
+        LogUtil.i(
+            AppConfig.TAG,
+            "Main ViewModel is cleared"
+        )
+
         super.onCleared()
     }
 
@@ -67,43 +133,82 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Reloads the server list based on current subscription filter.
      */
     fun reloadServerList() {
-        serverList = if (subscriptionId.isEmpty()) {
-            MmkvManager.decodeAllServerList()
-        } else {
-            MmkvManager.decodeServerList(subscriptionId)
-        }
+
+        serverList =
+            if (subscriptionId.isEmpty()) {
+
+                MmkvManager
+                    .decodeAllServerList()
+
+            } else {
+
+                MmkvManager
+                    .decodeServerList(
+                        subscriptionId
+                    )
+            }
 
         updateCache()
-        updateListAction.value = -1
+
+        updateListAction.value =
+            -1
     }
 
     /**
      * Removes a server by its GUID.
-     * @param guid The GUID of the server to remove.
      */
-    fun removeServer(guid: String) {
-        serverList.remove(guid)
-        MmkvManager.removeServer(guid)
-        val index = getPosition(guid)
+    fun removeServer(
+        guid: String
+    ) {
+
+        serverList.remove(
+            guid
+        )
+
+        MmkvManager.removeServer(
+            guid
+        )
+
+        val index =
+            getPosition(
+                guid
+            )
+
         if (index >= 0) {
-            serversCache.removeAt(index)
+            serversCache.removeAt(
+                index
+            )
         }
     }
 
     /**
      * Swaps the positions of two servers.
-     * @param fromPosition The initial position of the server.
-     * @param toPosition The target position of the server.
      */
-    fun swapServer(fromPosition: Int, toPosition: Int) {
+    fun swapServer(
+        fromPosition: Int,
+        toPosition: Int
+    ) {
+
         if (subscriptionId.isEmpty()) {
             return
         }
 
-        Collections.swap(serverList, fromPosition, toPosition)
-        Collections.swap(serversCache, fromPosition, toPosition)
+        Collections.swap(
+            serverList,
+            fromPosition,
+            toPosition
+        )
 
-        MmkvManager.encodeServerList(serverList, subscriptionId)
+        Collections.swap(
+            serversCache,
+            fromPosition,
+            toPosition
+        )
+
+        MmkvManager.encodeServerList(
+            serverList,
+            subscriptionId
+        )
     }
 
     /**
@@ -111,189 +216,419 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     @Synchronized
     fun updateCache() {
+
         serversCache.clear()
-        val kw = keywordFilter.trim()
-        val searchRegex = try {
-            if (kw.isNotEmpty()) Regex(kw, setOf(RegexOption.IGNORE_CASE)) else null
-        } catch (e: PatternSyntaxException) {
-            null // Fallback to literal search if regex is invalid
-        }
+
+        val kw =
+            keywordFilter.trim()
+
+        val searchRegex =
+            try {
+
+                if (kw.isNotEmpty()) {
+                    Regex(
+                        kw,
+                        setOf(
+                            RegexOption.IGNORE_CASE
+                        )
+                    )
+                } else {
+                    null
+                }
+
+            } catch (e: PatternSyntaxException) {
+                null
+            }
+
         for (guid in serverList) {
-            val profile = MmkvManager.decodeServerConfig(guid) ?: continue
+
+            val profile =
+                MmkvManager
+                    .decodeServerConfig(
+                        guid
+                    )
+                    ?: continue
+
             if (kw.isEmpty()) {
-                serversCache.add(ServersCache(guid, profile))
+
+                serversCache.add(
+                    ServersCache(
+                        guid,
+                        profile
+                    )
+                )
+
                 continue
             }
 
-            val remarks = profile.remarks
-            val description = profile.description.orEmpty()
-            val server = profile.server.orEmpty()
-            val protocol = profile.configType.name
-            if (remarks.matchesPattern(searchRegex, kw)
-                || description.matchesPattern(searchRegex, kw)
-                || server.matchesPattern(searchRegex, kw)
-                || protocol.matchesPattern(searchRegex, kw)
+            val remarks =
+                profile.remarks
+
+            val description =
+                profile.description.orEmpty()
+
+            val server =
+                profile.server.orEmpty()
+
+            val protocol =
+                profile.configType.name
+
+            if (
+                remarks.matchesPattern(
+                    searchRegex,
+                    kw
+                ) ||
+                description.matchesPattern(
+                    searchRegex,
+                    kw
+                ) ||
+                server.matchesPattern(
+                    searchRegex,
+                    kw
+                ) ||
+                protocol.matchesPattern(
+                    searchRegex,
+                    kw
+                )
             ) {
-                serversCache.add(ServersCache(guid, profile))
+
+                serversCache.add(
+                    ServersCache(
+                        guid,
+                        profile
+                    )
+                )
             }
         }
     }
 
     /**
-     * Updates the configuration via subscription for all servers.
-     * @return Detailed result of the subscription update operation.
+     * Updates configuration via subscription.
      */
-    fun updateConfigViaSubAll(): SubscriptionUpdateResult {
+    fun updateConfigViaSubAll():
+        SubscriptionUpdateResult {
+
         if (subscriptionId.isEmpty()) {
-            return AngConfigManager.updateConfigViaSubAll()
+
+            return AngConfigManager
+                .updateConfigViaSubAll()
+
         } else {
-            val subItem = MmkvManager.decodeSubscription(subscriptionId) ?: return SubscriptionUpdateResult()
-            return AngConfigManager.updateConfigViaSub(SubscriptionCache(subscriptionId, subItem))
+
+            val subItem =
+                MmkvManager
+                    .decodeSubscription(
+                        subscriptionId
+                    )
+                    ?: return SubscriptionUpdateResult()
+
+            return AngConfigManager
+                .updateConfigViaSub(
+                    SubscriptionCache(
+                        subscriptionId,
+                        subItem
+                    )
+                )
         }
     }
 
     /**
      * Exports all servers.
-     * @return The number of exported servers.
      */
     fun exportAllServer(): Int {
+
         val serverListCopy =
-            if (subscriptionId.isEmpty() && keywordFilter.isEmpty()) {
+            if (
+                subscriptionId.isEmpty() &&
+                keywordFilter.isEmpty()
+            ) {
+
                 serverList
+
             } else {
-                serversCache.map { it.guid }.toList()
+
+                serversCache
+                    .map {
+                        it.guid
+                    }
+                    .toList()
             }
 
-        val ret = AngConfigManager.shareNonCustomConfigsToClipboard(
-            getApplication<AngApplication>(),
-            serverListCopy
-        )
-        return ret
+        return AngConfigManager
+            .shareNonCustomConfigsToClipboard(
+                getApplication<AngApplication>(),
+                serverListCopy
+            )
     }
 
     /**
      * Tests the real ping for all servers.
+     *
+     * @param autoConnectAfterFinish
+     * false = normal/manual ping
+     * true = MojAzad startup ping:
+     *        sort -> choose best -> request auto-connect
      */
-    fun testAllRealPing() {
+    fun testAllRealPing(
+        autoConnectAfterFinish: Boolean = false
+    ) {
+
+        /*
+         * Cancel any previous test batch.
+         */
         MessageUtil.sendMsg2TestService(
             getApplication(),
-            TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_CANCEL)
+            TestServiceMessage(
+                key =
+                    AppConfig.MSG_MEASURE_CONFIG_CANCEL
+            )
         )
-        MmkvManager.clearAllTestDelayResults(serversCache.map { it.guid }.toList())
-        updateListAction.value = -1
 
-        viewModelScope.launch(Dispatchers.Default) {
+        /*
+         * Remember whether THIS new test batch
+         * should auto-connect after completion.
+         */
+        connectBestServerAfterPing =
+            autoConnectAfterFinish
+
+        /*
+         * Clear previous ping values.
+         */
+        MmkvManager
+            .clearAllTestDelayResults(
+                serversCache
+                    .map {
+                        it.guid
+                    }
+                    .toList()
+            )
+
+        updateListAction.value =
+            -1
+
+        viewModelScope.launch(
+            Dispatchers.Default
+        ) {
+
             if (serversCache.isEmpty()) {
+
+                connectBestServerAfterPing =
+                    false
+
                 return@launch
             }
+
             MessageUtil.sendMsg2TestService(
                 getApplication(),
                 TestServiceMessage(
-                    key = AppConfig.MSG_MEASURE_CONFIG_START,
-                    subscriptionId = subscriptionId,
-                    serverGuids = if (keywordFilter.isNotEmpty()) serversCache.map { it.guid } else emptyList()
+                    key =
+                        AppConfig.MSG_MEASURE_CONFIG_START,
+
+                    subscriptionId =
+                        subscriptionId,
+
+                    serverGuids =
+                        if (
+                            keywordFilter.isNotEmpty()
+                        ) {
+
+                            serversCache
+                                .map {
+                                    it.guid
+                                }
+
+                        } else {
+
+                            emptyList()
+                        }
                 )
             )
         }
     }
 
     /**
-     * Tests the real ping for the current server.
+     * Tests current selected server.
      */
     fun testCurrentServerRealPing() {
-        MessageUtil.sendMsg2Service(getApplication(), AppConfig.MSG_MEASURE_DELAY, "")
+
+        MessageUtil.sendMsg2Service(
+            getApplication(),
+            AppConfig.MSG_MEASURE_DELAY,
+            ""
+        )
     }
 
     /**
-     * Changes the subscription ID.
-     * @param id The new subscription ID.
+     * Changes subscription ID.
      */
-    fun subscriptionIdChanged(id: String) {
+    fun subscriptionIdChanged(
+        id: String
+    ) {
+
         if (subscriptionId != id) {
-            subscriptionId = id
-            MmkvManager.encodeSettings(AppConfig.CACHE_SUBSCRIPTION_ID, subscriptionId)
+
+            subscriptionId =
+                id
+
+            MmkvManager.encodeSettings(
+                AppConfig.CACHE_SUBSCRIPTION_ID,
+                subscriptionId
+            )
         }
+
         reloadServerList()
     }
 
     /**
-     * Gets the subscriptions.
-     * @param context The context.
-     * @return A pair of lists containing the subscription IDs and remarks.
+     * Gets subscriptions.
      */
-    fun getSubscriptions(context: Context): List<GroupMapItem> {
-        val subscriptions = MmkvManager.decodeSubscriptions()
-        if (subscriptionId.isNotEmpty()
-            && !subscriptions.map { it.guid }.contains(subscriptionId)
+    fun getSubscriptions(
+        context: Context
+    ): List<GroupMapItem> {
+
+        val subscriptions =
+            MmkvManager
+                .decodeSubscriptions()
+
+        if (
+            subscriptionId.isNotEmpty() &&
+            !subscriptions
+                .map {
+                    it.guid
+                }
+                .contains(
+                    subscriptionId
+                )
         ) {
-            subscriptionIdChanged("")
+
+            subscriptionIdChanged(
+                ""
+            )
         }
 
-        val groups = mutableListOf<GroupMapItem>()
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_GROUP_ALL_DISPLAY)) {
+        val groups =
+            mutableListOf<GroupMapItem>()
+
+        if (
+            MmkvManager.decodeSettingsBool(
+                AppConfig.PREF_GROUP_ALL_DISPLAY
+            )
+        ) {
+
             groups.add(
                 GroupMapItem(
                     id = "",
-                    remarks = context.getString(R.string.filter_config_all)
+                    remarks =
+                        context.getString(
+                            R.string.filter_config_all
+                        )
                 )
             )
         }
+
         subscriptions.forEach { sub ->
+
             groups.add(
                 GroupMapItem(
-                    id = sub.guid,
-                    remarks = sub.subscription.remarks
+                    id =
+                        sub.guid,
+
+                    remarks =
+                        sub.subscription.remarks
                 )
             )
         }
+
         return groups
     }
 
     /**
-     * Gets the position of a server by its GUID.
-     * @param guid The GUID of the server.
-     * @return The position of the server.
+     * Gets the position of a server by GUID.
      */
-    fun getPosition(guid: String): Int {
-        serversCache.forEachIndexed { index, it ->
-            if (it.guid == guid)
-                return index
-        }
+    fun getPosition(
+        guid: String
+    ): Int {
+
+        serversCache
+            .forEachIndexed {
+                index,
+                item ->
+
+                if (item.guid == guid) {
+                    return index
+                }
+            }
+
         return -1
     }
 
     /**
      * Removes duplicate servers.
-     * Excludes servers with complex types (Custom, PolicyGroup, or ProxyChain) from duplicate comparison.
-     * @return The number of removed servers.
      */
     fun removeDuplicateServer(): Int {
-        val serversCacheCopy = serversCache.toList().toMutableList()
-        val deleteServer = mutableListOf<String>()
 
-        serversCacheCopy.forEachIndexed { index, sc ->
-            val profile = sc.profile
-            // Skip if this profile has a complex config type
-            if (profile.configType.isComplexType()) {
-                return@forEachIndexed
-            }
+        val serversCacheCopy =
+            serversCache
+                .toList()
+                .toMutableList()
 
-            serversCacheCopy.forEachIndexed { index2, sc2 ->
-                if (index2 > index) {
-                    val profile2 = sc2.profile
-                    // Skip if the second profile has a complex config type
-                    if (profile2.configType.isComplexType()) {
-                        return@forEachIndexed
-                    }
+        val deleteServer =
+            mutableListOf<String>()
 
-                    if (profile == profile2 && !deleteServer.contains(sc2.guid)) {
-                        deleteServer.add(sc2.guid)
-                    }
+        serversCacheCopy
+            .forEachIndexed {
+                index,
+                sc ->
+
+                val profile =
+                    sc.profile
+
+                if (
+                    profile.configType
+                        .isComplexType()
+                ) {
+
+                    return@forEachIndexed
                 }
+
+                serversCacheCopy
+                    .forEachIndexed {
+                        index2,
+                        sc2 ->
+
+                        if (index2 > index) {
+
+                            val profile2 =
+                                sc2.profile
+
+                            if (
+                                profile2.configType
+                                    .isComplexType()
+                            ) {
+
+                                return@forEachIndexed
+                            }
+
+                            if (
+                                profile == profile2 &&
+                                !deleteServer.contains(
+                                    sc2.guid
+                                )
+                            ) {
+
+                                deleteServer.add(
+                                    sc2.guid
+                                )
+                            }
+                        }
+                    }
             }
-        }
-        for (it in deleteServer) {
-            MmkvManager.removeServer(it)
+
+        for (item in deleteServer) {
+
+            MmkvManager.removeServer(
+                item
+            )
         }
 
         return deleteServer.count()
@@ -301,176 +636,495 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Removes all servers.
-     * @return The number of removed servers.
      */
     fun removeAllServer(): Int {
-        val count =
-            if (subscriptionId.isEmpty() && keywordFilter.isEmpty()) {
-                MmkvManager.removeAllServer()
-            } else {
-                val serversCopy = serversCache.toList()
-                for (item in serversCopy) {
-                    MmkvManager.removeServer(item.guid)
-                }
-                serversCache.toList().count()
+
+        return if (
+            subscriptionId.isEmpty() &&
+            keywordFilter.isEmpty()
+        ) {
+
+            MmkvManager
+                .removeAllServer()
+
+        } else {
+
+            val serversCopy =
+                serversCache.toList()
+
+            for (item in serversCopy) {
+
+                MmkvManager.removeServer(
+                    item.guid
+                )
             }
-        return count
+
+            serversCache
+                .toList()
+                .count()
+        }
     }
 
     /**
      * Removes invalid servers.
-     * @return The number of removed servers.
      */
     fun removeInvalidServer(): Int {
-        var count = 0
-        if (subscriptionId.isEmpty() && keywordFilter.isEmpty()) {
-            count += MmkvManager.removeInvalidServer("")
+
+        var count =
+            0
+
+        if (
+            subscriptionId.isEmpty() &&
+            keywordFilter.isEmpty()
+        ) {
+
+            count +=
+                MmkvManager
+                    .removeInvalidServer(
+                        ""
+                    )
+
         } else {
-            val serversCopy = serversCache.toList()
+
+            val serversCopy =
+                serversCache.toList()
+
             for (item in serversCopy) {
-                count += MmkvManager.removeInvalidServer(item.guid)
+
+                count +=
+                    MmkvManager
+                        .removeInvalidServer(
+                            item.guid
+                        )
             }
         }
+
         return count
     }
 
     /**
-     * Sorts servers by their test results.
+     * Sorts servers by test results.
      */
     fun sortByTestResults() {
+
         if (subscriptionId.isEmpty()) {
-            MmkvManager.decodeSubsList().forEach { guid ->
-                sortByTestResultsForSub(guid)
-            }
+
+            MmkvManager
+                .decodeSubsList()
+                .forEach { guid ->
+
+                    sortByTestResultsForSub(
+                        guid
+                    )
+                }
+
         } else {
-            sortByTestResultsForSub(subscriptionId)
+
+            sortByTestResultsForSub(
+                subscriptionId
+            )
         }
     }
 
     /**
-     * Sorts servers by their test results for a specific subscription.
-     * @param subId The subscription ID to sort servers for.
+     * Sort servers for a subscription.
      */
-    private fun sortByTestResultsForSub(subId: String) {
-        data class ServerDelay(var guid: String, var testDelayMillis: Long)
+    private fun sortByTestResultsForSub(
+        subId: String
+    ) {
 
-        val serverDelays = mutableListOf<ServerDelay>()
-        val serverListToSort = MmkvManager.decodeServerList(subId)
+        data class ServerDelay(
+            var guid: String,
+            var testDelayMillis: Long
+        )
 
-        serverListToSort.forEach { key ->
-            val delay = MmkvManager.decodeServerAffiliationInfo(key)?.testDelayMillis ?: 0L
-            serverDelays.add(ServerDelay(key, if (delay <= 0L) 999999 else delay))
+        val serverDelays =
+            mutableListOf<ServerDelay>()
+
+        val serverListToSort =
+            MmkvManager
+                .decodeServerList(
+                    subId
+                )
+
+        serverListToSort
+            .forEach { key ->
+
+                val delay =
+                    MmkvManager
+                        .decodeServerAffiliationInfo(
+                            key
+                        )
+                        ?.testDelayMillis
+                        ?: 0L
+
+                serverDelays.add(
+                    ServerDelay(
+                        key,
+                        if (delay <= 0L) {
+                            999999L
+                        } else {
+                            delay
+                        }
+                    )
+                )
+            }
+
+        serverDelays.sortBy {
+            it.testDelayMillis
         }
-        serverDelays.sortBy { it.testDelayMillis }
 
-        val sortedServerList = serverDelays.map { it.guid }.toMutableList()
+        val sortedServerList =
+            serverDelays
+                .map {
+                    it.guid
+                }
+                .toMutableList()
 
-        // Save the sorted list for this subscription
-        MmkvManager.encodeServerList(sortedServerList, subId)
+        MmkvManager.encodeServerList(
+            sortedServerList,
+            subId
+        )
     }
-
 
     /**
-     * Initializes assets.
-     * @param assets The asset manager.
+     * Finds the server with the smallest valid ping.
+     *
+     * Only ping values > 0 are accepted.
+     * 0 = no valid test
+     * negative = failed test
      */
-    fun initAssets(assets: AssetManager) {
-        viewModelScope.launch(Dispatchers.Default) {
-            SettingsManager.initAssets(getApplication<AngApplication>(), assets)
-        }
+    private fun findBestTestedServer():
+        String? {
+
+        return serversCache
+            .mapNotNull { server ->
+
+                val delay =
+                    MmkvManager
+                        .decodeServerAffiliationInfo(
+                            server.guid
+                        )
+                        ?.testDelayMillis
+                        ?: 0L
+
+                if (delay > 0L) {
+
+                    Pair(
+                        server.guid,
+                        delay
+                    )
+
+                } else {
+
+                    null
+                }
+            }
+            .minByOrNull {
+                it.second
+            }
+            ?.first
     }
 
     /**
-     * Filters the configuration by a keyword.
-     * @param keyword The keyword to filter by.
+     * Called after the full real-ping batch has completed.
      */
-    fun filterConfig(keyword: String) {
-        if (keyword == keywordFilter) {
-            return
-        }
-        keywordFilter = keyword
-        reloadServerList()
-    }
-
-    fun findSubscriptionIdBySelect(): String? {
-        // Get the selected server GUID
-        val selectedGuid = MmkvManager.getSelectServer()
-        if (selectedGuid.isNullOrEmpty()) {
-            return null
-        }
-
-        val config = MmkvManager.decodeServerConfig(selectedGuid)
-        return config?.subscriptionId
-    }
-
     fun onTestsFinished() {
-        viewModelScope.launch(Dispatchers.Default) {
-            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_REMOVE_INVALID_AFTER_TEST)) {
+
+        viewModelScope.launch(
+            Dispatchers.Default
+        ) {
+
+            /*
+             * Capture this before resetting it.
+             */
+            val shouldAutoConnect =
+                connectBestServerAfterPing
+
+            connectBestServerAfterPing =
+                false
+
+            /*
+             * Keep original v2rayNG behavior
+             * for users who enabled auto-remove.
+             */
+            if (
+                MmkvManager.decodeSettingsBool(
+                    AppConfig.PREF_AUTO_REMOVE_INVALID_AFTER_TEST
+                )
+            ) {
+
                 removeInvalidServer()
             }
 
-            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_SORT_AFTER_TEST)) {
+            /*
+             * MojAzad startup ping always sorts.
+             *
+             * Manual ping only sorts when the normal
+             * v2rayNG Auto Sort preference is enabled.
+             */
+            if (
+                shouldAutoConnect ||
+                MmkvManager.decodeSettingsBool(
+                    AppConfig.PREF_AUTO_SORT_AFTER_TEST
+                )
+            ) {
+
                 sortByTestResults()
             }
 
-            withContext(Dispatchers.Main) {
+            /*
+             * Find and select the fastest valid server.
+             */
+            val bestServerGuid =
+                if (shouldAutoConnect) {
+
+                    findBestTestedServer()
+
+                } else {
+
+                    null
+                }
+
+            if (
+                !bestServerGuid.isNullOrBlank()
+            ) {
+
+                MmkvManager.setSelectServer(
+                    bestServerGuid
+                )
+            }
+
+            withContext(
+                Dispatchers.Main
+            ) {
+
+                /*
+                 * Reload so sorting and selected server
+                 * are immediately reflected in the UI.
+                 */
                 reloadServerList()
-            }
-        }
-    }
 
-    private val mMsgReceiver = object : BroadcastReceiver() {
-        override fun onReceive(ctx: Context?, intent: Intent?) {
-            when (intent?.getIntExtra("key", 0)) {
-                AppConfig.MSG_STATE_RUNNING -> {
-                    isRunning.value = true
-                }
+                if (
+                    !bestServerGuid
+                        .isNullOrBlank()
+                ) {
 
-                AppConfig.MSG_STATE_NOT_RUNNING -> {
-                    isRunning.value = false
-                }
-
-                AppConfig.MSG_STATE_START_SUCCESS -> {
-                    getApplication<AngApplication>().toastSuccess(R.string.toast_services_success)
-                    isRunning.value = true
-                }
-
-                AppConfig.MSG_STATE_START_FAILURE -> {
-                    val errorMessage = intent.getStringExtra("content")
-                    if (!errorMessage.isNullOrBlank()) {
-                        getApplication<AngApplication>().toastError(errorMessage)
-                    } else {
-                        getApplication<AngApplication>().toastError(R.string.toast_services_failure)
-                    }
-                    isRunning.value = false
-                }
-
-                AppConfig.MSG_STATE_STOP_SUCCESS -> {
-                    isRunning.value = false
-                }
-
-                AppConfig.MSG_MEASURE_DELAY_SUCCESS -> {
-                    updateTestResultAction.value = intent.getStringExtra("content")
-                }
-
-                AppConfig.MSG_MEASURE_CONFIG_SUCCESS -> {
-                    val content = intent.getStringExtra("content")
-                    updateListAction.value = getPosition(content ?: "")
-                }
-
-                AppConfig.MSG_MEASURE_CONFIG_NOTIFY -> {
-                    val content = intent.getStringExtra("content")
-                    updateTestResultAction.value =
-                        getApplication<AngApplication>().getString(R.string.connection_runing_task_left, content)
-                }
-
-                AppConfig.MSG_MEASURE_CONFIG_FINISH -> {
-                    val content = intent.getStringExtra("content")
-                    if (content == "0") {
-                        onTestsFinished()
-                    }
+                    /*
+                     * Ask MainActivity to connect.
+                     */
+                    autoConnectBestServerAction.value =
+                        true
                 }
             }
         }
     }
+
+    /**
+     * MainActivity calls this immediately
+     * after consuming the auto-connect event.
+     */
+    fun consumeAutoConnectBestServerAction() {
+
+        autoConnectBestServerAction.value =
+            false
+    }
+
+    /**
+     * Initializes assets.
+     */
+    fun initAssets(
+        assets: AssetManager
+    ) {
+
+        viewModelScope.launch(
+            Dispatchers.Default
+        ) {
+
+            SettingsManager.initAssets(
+                getApplication<AngApplication>(),
+                assets
+            )
+        }
+    }
+
+    /**
+     * Filters configuration.
+     */
+    fun filterConfig(
+        keyword: String
+    ) {
+
+        if (
+            keyword ==
+            keywordFilter
+        ) {
+            return
+        }
+
+        keywordFilter =
+            keyword
+
+        reloadServerList()
+    }
+
+    fun findSubscriptionIdBySelect():
+        String? {
+
+        val selectedGuid =
+            MmkvManager
+                .getSelectServer()
+
+        if (
+            selectedGuid
+                .isNullOrEmpty()
+        ) {
+            return null
+        }
+
+        val config =
+            MmkvManager
+                .decodeServerConfig(
+                    selectedGuid
+                )
+
+        return config
+            ?.subscriptionId
+    }
+
+    private val mMsgReceiver =
+        object : BroadcastReceiver() {
+
+            override fun onReceive(
+                ctx: Context?,
+                intent: Intent?
+            ) {
+
+                when (
+                    intent
+                        ?.getIntExtra(
+                            "key",
+                            0
+                        )
+                ) {
+
+                    AppConfig.MSG_STATE_RUNNING -> {
+
+                        isRunning.value =
+                            true
+                    }
+
+                    AppConfig.MSG_STATE_NOT_RUNNING -> {
+
+                        isRunning.value =
+                            false
+                    }
+
+                    AppConfig.MSG_STATE_START_SUCCESS -> {
+
+                        getApplication<AngApplication>()
+                            .toastSuccess(
+                                R.string.toast_services_success
+                            )
+
+                        isRunning.value =
+                            true
+                    }
+
+                    AppConfig.MSG_STATE_START_FAILURE -> {
+
+                        val errorMessage =
+                            intent
+                                .getStringExtra(
+                                    "content"
+                                )
+
+                        if (
+                            !errorMessage
+                                .isNullOrBlank()
+                        ) {
+
+                            getApplication<AngApplication>()
+                                .toastError(
+                                    errorMessage
+                                )
+
+                        } else {
+
+                            getApplication<AngApplication>()
+                                .toastError(
+                                    R.string.toast_services_failure
+                                )
+                        }
+
+                        isRunning.value =
+                            false
+                    }
+
+                    AppConfig.MSG_STATE_STOP_SUCCESS -> {
+
+                        isRunning.value =
+                            false
+                    }
+
+                    AppConfig.MSG_MEASURE_DELAY_SUCCESS -> {
+
+                        updateTestResultAction.value =
+                            intent
+                                .getStringExtra(
+                                    "content"
+                                )
+                    }
+
+                    AppConfig.MSG_MEASURE_CONFIG_SUCCESS -> {
+
+                        val content =
+                            intent
+                                .getStringExtra(
+                                    "content"
+                                )
+
+                        updateListAction.value =
+                            getPosition(
+                                content.orEmpty()
+                            )
+                    }
+
+                    AppConfig.MSG_MEASURE_CONFIG_NOTIFY -> {
+
+                        val content =
+                            intent
+                                .getStringExtra(
+                                    "content"
+                                )
+
+                        updateTestResultAction.value =
+                            getApplication<AngApplication>()
+                                .getString(
+                                    R.string.connection_runing_task_left,
+                                    content
+                                )
+                    }
+
+                    AppConfig.MSG_MEASURE_CONFIG_FINISH -> {
+
+                        val content =
+                            intent
+                                .getStringExtra(
+                                    "content"
+                                )
+
+                        /*
+                         * "0" means the whole batch completed normally.
+                         *
+                         * A cancelled ping uses "-1",
+                         * so it will never accidentally auto-connect.
+                         */
+                        if (content == "0") {
+                            onTestsFinished()
+                        }
+                    }
+                }
+            }
+        }
 }
