@@ -5,82 +5,146 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/md_theme_background">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:background="@color/md_theme_background">
+        android:background="@color/md_theme_background"
+        android:fitsSystemWindows="true"
+        android:orientation="vertical">
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
+        <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"/>
+            android:layout_height="wrap_content"
+            android:background="?attr/colorSurface"
+            android:elevation="0dp">
+
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="?attr/colorSurface"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                app:titleTextColor="?attr/colorOnSurface" />
+
+        </com.google.android.material.appbar.AppBarLayout>
 
 
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tab_group"
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="52dp"/>
+            android:layout_height="match_parent"
+            android:background="@color/md_theme_background">
+
+            <androidx.coordinatorlayout.widget.CoordinatorLayout
+                android:id="@+id/main_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
 
 
-        <LinearLayout
-            android:id="@+id/connect_container"
-            android:layout_width="match_parent"
-            android:layout_height="150dp"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <FrameLayout
-                android:id="@+id/fab"
-                android:layout_width="92dp"
-                android:layout_height="92dp"
-                android:background="@drawable/bg_connect_button"
-                android:clickable="true"
-                android:focusable="true">
-
-                <TextView
-                    android:id="@+id/tv_connect_state"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="Connect"
-                    android:textStyle="bold"/>
-
-            </FrameLayout>
+                    android:orientation="vertical">
 
 
-            <TextView
-                android:id="@+id/tv_ping"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Ping: -- ms"/>
-
-        </LinearLayout>
-
-
-        <androidx.viewpager2.widget.ViewPager2
-            android:id="@+id/view_pager"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"/>
+                    <com.google.android.material.progressindicator.LinearProgressIndicator
+                        android:id="@+id/progress_bar"
+                        android:layout_width="match_parent"
+                        android:layout_height="3dp"
+                        android:indeterminate="true"
+                        android:visibility="invisible"
+                        app:indicatorColor="@color/md_theme_primary"
+                        app:trackColor="@color/md_theme_primaryContainer"
+                        app:trackThickness="3dp" />
 
 
-        <LinearLayout
-            android:id="@+id/layout_test"
-            android:layout_width="match_parent"
-            android:layout_height="68dp"
-            android:orientation="vertical">
+                    <com.google.android.material.tabs.TabLayout
+                        android:id="@+id/tab_group"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:background="?attr/colorSurface"
+                        app:tabGravity="center"
+                        app:tabIndicatorColor="@color/md_theme_primary"
+                        app:tabIndicatorFullWidth="false"
+                        app:tabIndicatorHeight="3dp"
+                        app:tabMode="scrollable"
+                        app:tabRippleColor="@color/md_theme_primaryContainer"
+                        app:tabSelectedTextColor="@color/md_theme_primary"
+                        app:tabTextAppearance="@style/TabLayoutTextStyle"
+                        app:tabTextColor="?attr/colorOnSurfaceVariant" />
 
-            <TextView
-                android:id="@+id/tv_test_state"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:text="@string/connection_test_pending"/>
 
-        </LinearLayout>
+                    <androidx.viewpager2.widget.ViewPager2
+                        android:id="@+id/view_pager"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:background="@color/md_theme_background"
+                        android:scrollbars="vertical" />
 
+
+                    <LinearLayout
+                        android:id="@+id/layout_test"
+                        android:layout_width="match_parent"
+                        android:layout_height="68dp"
+                        android:background="?attr/colorSurface"
+                        android:clickable="true"
+                        android:contentDescription="@string/connection_test_pending"
+                        android:elevation="6dp"
+                        android:focusable="true"
+                        android:orientation="vertical">
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                        android:background="@color/divider_color_light" />
+
+                        <TextView
+                            android:id="@+id/tv_test_state"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="start|center_vertical"
+                            android:paddingStart="20dp"
+                            android:text="@string/connection_test_pending"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginEnd="18dp"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/fab"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:clickable="true"
+                        android:contentDescription="@string/tasker_start_service"
+                        android:focusable="true"
+                        android:src="@drawable/ic_play_24dp"
+                        app:backgroundTint="@color/color_fab_active"
+                        app:borderWidth="0dp"
+                        app:elevation="8dp"
+                        app:maxImageSize="26dp"
+                        app:tint="@color/colorWhite"
+                        app:useCompatPadding="true" />
+
+                </FrameLayout>
+
+
+            </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+        </RelativeLayout>
 
     </LinearLayout>
 
@@ -90,7 +154,10 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        app:menu="@menu/menu_drawer"/>
-
+        android:background="?attr/colorSurface"
+        app:headerLayout="@layout/nav_header"
+        app:itemIconTint="?attr/colorOnSurfaceVariant"
+        app:itemTextColor="?attr/colorOnSurface"
+        app:menu="@menu/menu_drawer" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
