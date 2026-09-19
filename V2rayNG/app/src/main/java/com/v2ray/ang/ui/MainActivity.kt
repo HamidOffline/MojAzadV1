@@ -84,10 +84,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     /*
      * MojAzad:
      *
-     * Dedicated launcher for Subscription Settings.
+     * Subscription Settings -> Add
      *
-     * When a new subscription is created,
-     * SubSettingActivity returns its exact subscription ID.
+     * This route stays fully supported.
      */
     private val requestSubSettingLauncher =
         registerForActivityResult(
@@ -139,25 +138,34 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 }
             }
 
-            /*
-             * Existing subscription was edited/deleted,
-             * or user simply returned from the screen.
-             */
             if (needsSetupGroupTab) {
+
                 setupGroupTab()
-                refreshGroupTabTitles(true)
+
+                refreshGroupTabTitles(
+                    true
+                )
             }
         }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
 
-        setContentView(binding.root)
+        super.onCreate(
+            savedInstanceState
+        )
+
+        setContentView(
+            binding.root
+        )
 
         setupToolbar(
             binding.toolbar,
             false,
-            getString(R.string.title_server)
+            getString(
+                R.string.title_server
+            )
         )
 
         groupPagerAdapter =
@@ -186,13 +194,22 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         setupViewModel()
 
         val hasValidSubscription =
-            MmkvManager.decodeSubscriptions().any {
-                it.subscription.url.isNotBlank()
-            }
+            MmkvManager
+                .decodeSubscriptions()
+                .any {
 
-        if (!hasValidSubscription) {
+                    it.subscription.url
+                        .isNotBlank()
+                }
+
+        if (
+            !hasValidSubscription
+        ) {
+
             showMojAzadActivationDialog()
+
         } else {
+
             refreshMojAzadSubscription()
         }
 
@@ -203,19 +220,20 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     /**
-     * Handle a subscription created manually from:
+     * Handles subscriptions created either from:
      *
-     * Subscription Settings -> Add.
+     * 1. Subscription Settings -> Add
+     * 2. Main menu -> Import from Clipboard
      *
      * Flow:
      *
-     * Update subscriptions
-     * -> Select newly-created subscription
-     * -> Open its tab
-     * -> Ping all servers in that subscription
+     * Download
+     * -> switch to exact subscription
+     * -> rebuild tabs
+     * -> Ping
      * -> Sort
-     * -> Select fastest server
-     * -> Auto-connect.
+     * -> select fastest
+     * -> Connect / Restart VPN
      */
     private fun handleNewMojAzadSubscription(
         subId: String
@@ -229,16 +247,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
             try {
 
-                /*
-                 * Immediately download/import subscription data.
-                 */
                 AngConfigManager
                     .updateConfigViaSubAll()
 
-                /*
-                 * Check the exact newly-created subscription,
-                 * not the other existing subscriptions.
-                 */
                 val hasServers =
                     MmkvManager
                         .decodeServerList(
@@ -250,34 +261,21 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     Dispatchers.Main
                 ) {
 
-                    /*
-                     * Explicitly switch MainViewModel
-                     * to the newly-created subscription.
-                     */
                     mainViewModel
                         .subscriptionIdChanged(
                             subId
                         )
 
-                    /*
-                     * Rebuild tabs and move to this subscription.
-                     */
                     setupGroupTab()
 
                     refreshGroupTabTitles(
                         true
                     )
 
-                    if (hasServers) {
+                    if (
+                        hasServers
+                    ) {
 
-                        /*
-                         * New subscription:
-                         *
-                         * Ping
-                         * -> Sort
-                         * -> Fastest server
-                         * -> Auto-connect.
-                         */
                         mainViewModel
                             .testAllRealPing(
                                 autoConnectAfterFinish = true
@@ -297,7 +295,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     hideLoading()
                 }
 
-            } catch (e: Exception) {
+            } catch (
+                e: Exception
+            ) {
 
                 LogUtil.e(
                     AppConfig.TAG,
@@ -309,10 +309,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     Dispatchers.Main
                 ) {
 
-                    /*
-                     * Keep the new subscription visible
-                     * even if its first download failed.
-                     */
                     mainViewModel
                         .subscriptionIdChanged(
                             subId
@@ -334,6 +330,115 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
+    /**
+     * Import a subscription directly from Clipboard.
+     *
+     * Used by:
+     *
+     * + -> Import from Clipboard
+     */
+    private fun importMojAzadSubscriptionFromClipboard(
+        subscriptionUrl: String
+    ) {
+
+        val normalizedUrl =
+            subscriptionUrl
+                .trim()
+
+        /*
+         * Prevent duplicate subscription URLs.
+         */
+        val alreadyExists =
+            MmkvManager
+                .decodeSubscriptions()
+                .any {
+
+                    it.subscription.url
+                        .trim() ==
+                        normalizedUrl
+                }
+
+        if (
+            alreadyExists
+        ) {
+
+            toast(
+                "این اشتراک قبلاً اضافه شده است"
+            )
+
+            return
+        }
+
+        /*
+         * Count existing real subscriptions.
+         */
+        val existingSubscriptionCount =
+            MmkvManager
+                .decodeSubscriptions()
+                .count {
+
+                    it.subscription.url
+                        .isNotBlank()
+                }
+
+        val subscriptionNumber =
+            existingSubscriptionCount + 1
+
+        val subId =
+            Utils.getUuid()
+
+        val subscription =
+            SubscriptionItem().apply {
+
+                remarks =
+                    if (
+                        subscriptionNumber <= 1
+                    ) {
+
+                        "MojAzad"
+
+                    } else {
+
+                        "MojAzad $subscriptionNumber"
+                    }
+
+                url =
+                    normalizedUrl
+
+                enabled =
+                    true
+
+                autoUpdate =
+                    true
+
+                updateInterval =
+                    60L
+            }
+
+        /*
+         * Save as a separate subscription.
+         */
+        MmkvManager.encodeSubscription(
+            subId,
+            subscription
+        )
+
+        /*
+         * Keep its periodic auto-update enabled.
+         */
+        SubscriptionUpdater.syncOne(
+            subId = subId
+        )
+
+        /*
+         * Same flow used by subscriptions added
+         * from Subscription Settings.
+         */
+        handleNewMojAzadSubscription(
+            subId
+        )
+    }
+
     private fun showMojAzadActivationDialog() {
 
         val input =
@@ -346,7 +451,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     InputType.TYPE_CLASS_TEXT or
                         InputType.TYPE_TEXT_VARIATION_URI
 
-                setSingleLine(true)
+                setSingleLine(
+                    true
+                )
             }
 
         val dialog =
@@ -357,8 +464,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 .setMessage(
                     "لینک اشتراک خود را وارد کنید"
                 )
-                .setView(input)
-                .setCancelable(false)
+                .setView(
+                    input
+                )
+                .setCancelable(
+                    false
+                )
                 .setPositiveButton(
                     "فعال‌سازی",
                     null
@@ -379,7 +490,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                             ?.trim()
                             .orEmpty()
 
-                    if (subscriptionUrl.isBlank()) {
+                    if (
+                        subscriptionUrl.isBlank()
+                    ) {
 
                         input.error =
                             "لینک اشتراک را وارد کنید"
@@ -508,7 +621,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                                 }
                             }
 
-                        } catch (e: Exception) {
+                        } catch (
+                            e: Exception
+                        ) {
 
                             MmkvManager
                                 .removeSubscription(
@@ -588,7 +703,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     hideLoading()
                 }
 
-            } catch (e: Exception) {
+            } catch (
+                e: Exception
+            ) {
 
                 LogUtil.e(
                     AppConfig.TAG,
@@ -634,7 +751,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         onBackPressedDispatcher.addCallback(
             this,
-            object : OnBackPressedCallback(true) {
+            object :
+                OnBackPressedCallback(
+                    true
+                ) {
 
                 override fun handleOnBackPressed() {
 
@@ -670,13 +790,20 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         mainViewModel
             .updateTestResultAction
-            .observe(this) {
-                setTestState(it)
+            .observe(
+                this
+            ) {
+
+                setTestState(
+                    it
+                )
             }
 
         mainViewModel
             .isRunning
-            .observe(this) { isRunning ->
+            .observe(
+                this
+            ) { isRunning ->
 
                 applyRunningState(
                     false,
@@ -686,11 +813,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         mainViewModel
             .autoConnectBestServerAction
-            .observe(this) { shouldConnect ->
+            .observe(
+                this
+            ) { shouldConnect ->
 
                 if (
                     shouldConnect != true
                 ) {
+
                     return@observe
                 }
 
@@ -851,6 +981,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 if (
                     group.id.isEmpty()
                 ) {
+
                     return@forEach
                 }
 
@@ -1103,10 +1234,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     override fun onResume() {
+
         super.onResume()
     }
 
     override fun onPause() {
+
         super.onPause()
     }
 
@@ -1184,18 +1317,21 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             R.id.import_qrcode -> {
 
                 importQRcode()
+
                 true
             }
 
             R.id.import_clipboard -> {
 
                 importClipboard()
+
                 true
             }
 
             R.id.import_local -> {
 
                 importConfigLocal()
+
                 true
             }
 
@@ -1292,6 +1428,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             R.id.export_all -> {
 
                 exportAll()
+
                 true
             }
 
@@ -1315,42 +1452,49 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             R.id.service_restart -> {
 
                 restartV2Ray()
+
                 true
             }
 
             R.id.del_all_config -> {
 
                 delAllConfig()
+
                 true
             }
 
             R.id.del_duplicate_config -> {
 
                 delDuplicateConfig()
+
                 true
             }
 
             R.id.del_invalid_config -> {
 
                 delInvalidConfig()
+
                 true
             }
 
             R.id.sort_by_test_results -> {
 
                 sortByTestResults()
+
                 true
             }
 
             R.id.sub_update -> {
 
                 importConfigViaSub()
+
                 true
             }
 
             R.id.locate_selected_config -> {
 
                 locateSelectedServer()
+
                 true
             }
 
@@ -1436,6 +1580,15 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         return true
     }
 
+    /**
+     * MojAzad Clipboard import.
+     *
+     * HTTP/HTTPS single URL:
+     * treat as a new subscription.
+     *
+     * vmess/vless/trojan/etc:
+     * keep original v2rayNG import behavior.
+     */
     private fun importClipboard(): Boolean {
 
         try {
@@ -1444,12 +1597,90 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 Utils.getClipboard(
                     this
                 )
+                    ?.trim()
+                    .orEmpty()
 
-            importBatchConfig(
-                clipboard
-            )
+            if (
+                clipboard.isBlank()
+            ) {
 
-        } catch (e: Exception) {
+                toast(
+                    "کلیپ‌بورد خالی است"
+                )
+
+                return false
+            }
+
+            val isSingleHttpUrl =
+                !clipboard.contains(
+                    "\n"
+                ) &&
+                (
+                    clipboard.startsWith(
+                        "https://",
+                        ignoreCase = true
+                    ) ||
+                    clipboard.startsWith(
+                        "http://",
+                        ignoreCase = true
+                    )
+                )
+
+            if (
+                isSingleHttpUrl
+            ) {
+
+                if (
+                    !Utils.isValidUrl(
+                        clipboard
+                    )
+                ) {
+
+                    toast(
+                        "لینک معتبر نیست"
+                    )
+
+                    return false
+                }
+
+                if (
+                    !Utils.isValidSubUrl(
+                        clipboard
+                    )
+                ) {
+
+                    toast(
+                        "لینک اشتراک معتبر نیست"
+                    )
+
+                    return false
+                }
+
+                importMojAzadSubscriptionFromClipboard(
+                    clipboard
+                )
+
+            } else {
+
+                /*
+                 * Original behavior for:
+                 *
+                 * vmess://
+                 * vless://
+                 * trojan://
+                 * ss://
+                 * hysteria2://
+                 * multiple configs
+                 * etc.
+                 */
+                importBatchConfig(
+                    clipboard
+                )
+            }
+
+        } catch (
+            e: Exception
+        ) {
 
             LogUtil.e(
                 AppConfig.TAG,
@@ -1527,7 +1758,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     hideLoading()
                 }
 
-            } catch (e: Exception) {
+            } catch (
+                e: Exception
+            ) {
 
                 withContext(
                     Dispatchers.Main
@@ -1555,7 +1788,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
             showFileChooser()
 
-        } catch (e: Exception) {
+        } catch (
+            e: Exception
+        ) {
 
             LogUtil.e(
                 AppConfig.TAG,
@@ -1853,6 +2088,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             if (
                 uri == null
             ) {
+
                 return@launchFileChooser
             }
 
@@ -1881,7 +2117,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     )
                 }
 
-        } catch (e: Exception) {
+        } catch (
+            e: Exception
+        ) {
 
             LogUtil.e(
                 AppConfig.TAG,
@@ -1945,6 +2183,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.viewPager
                 .postDelayed(
                     {
+
                         scrollToSelectedServer(
                             targetGroupIndex
                         )
