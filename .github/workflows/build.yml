@@ -1,4 +1,4 @@
-name: MojAzad Debug APK
+name: MojAzad ARM64 Debug APK
 
 on:
   workflow_dispatch:
@@ -26,7 +26,9 @@ jobs:
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
             --channel=0 \
             --install "ndk;29.0.14206865"
+
           echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
+
           sed -i '10i\
           \
               ndkVersion = "29.0.14206865"' ${{ github.workspace }}/V2rayNG/app/build.gradle.kts
@@ -52,14 +54,14 @@ jobs:
 
       - name: Copy libhev1tun
         run: |
-          cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app/
+          cp -r "${{ github.workspace }}/libs" "${{ github.workspace }}/V2rayNG/app/"
 
       - name: Fetch AndroidLibXrayLite tag
         run: |
           pushd AndroidLibXrayLite
           CURRENT_TAG=$(git describe --tags --abbrev=0)
-          echo "Current tag in this repo: $CURRENT_TAG"
-          echo "CURRENT_TAG=$CURRENT_TAG" >> $GITHUB_ENV
+          echo "Current tag: $CURRENT_TAG"
+          echo "CURRENT_TAG=$CURRENT_TAG" >> "$GITHUB_ENV"
           popd
 
       - name: Download libv2ray
@@ -76,16 +78,39 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Build Debug APK
+      - name: Build MojAzad ARM64 Debug APK
         run: |
-          cd ${{ github.workspace }}/V2rayNG
-          echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          chmod 755 gradlew
-          ./gradlew assembleDebug
+          cd "${{ github.workspace }}/V2rayNG"
 
-      - name: Upload MojAzad Debug APK
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+
+          chmod 755 gradlew
+
+          ./gradlew assemblePlaystoreDebug -PABI_FILTERS=arm64-v8a
+
+      - name: Collect MojAzad ARM64 APK
+        run: |
+          mkdir -p "${{ github.workspace }}/mojazad-apk"
+
+          find "${{ github.workspace }}/V2rayNG/app/build/outputs/apk" \
+            -type f \
+            -name "MojAzad_*_arm64-v8a.apk" \
+            -exec cp {} "${{ github.workspace }}/mojazad-apk/" \;
+
+          echo "Generated APK:"
+          ls -lah "${{ github.workspace }}/mojazad-apk"
+
+          APK_COUNT=$(find "${{ github.workspace }}/mojazad-apk" -type f -name "*.apk" | wc -l)
+
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "ERROR: MojAzad ARM64 APK was not found."
+            exit 1
+          fi
+
+      - name: Upload MojAzad ARM64 APK
         uses: actions/upload-artifact@v7
         with:
-          name: MojAzad-Debug-APK
-          path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/**/*.apk
+          name: MojAzad-ARM64
+          path: ${{ github.workspace }}/mojazad-apk/*.apk
           if-no-files-found: error
+          retention-days: 7
