@@ -181,16 +181,36 @@ jobs:
           fi
 
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=MojAzad.V2" >> "$GITHUB_ENV"
+          echo "RELEASE_TITLE=MojAzad.V2" >> "$GITHUB_ENV"
 
-          echo "MojAzad version: $VERSION_NAME"
+          echo "Android version: $VERSION_NAME"
+          echo "Release tag: MojAzad.V2"
+          echo "Release title: MojAzad.V2"
 
       - name: Create release notes
         run: |
           cat > "${{ github.workspace }}/release-notes.md" << EOF
-          ## موج آزاد ${VERSION_NAME}
+          # MojAzad.V2
 
-          نسخه رسمی MojAzad برای Android.
+          نسخه دوم رسمی موج آزاد برای Android.
+
+          **Android Version:** ${VERSION_NAME}
+
+          ### تغییرات MojAzad V2
+
+          - طراحی جدید و مدرن رابط کاربری
+          - پشتیبانی از حالت روشن و تاریک
+          - نمایش دو ستونه سرورها
+          - کارت‌های فشرده‌تر برای نمایش سرورهای بیشتر
+          - انتخاب خودکار بهترین سرور بر اساس Ping
+          - اتصال خودکار به بهترین سرور پس از تست
+          - پشتیبانی بهتر از چند Subscription
+          - افزودن Subscription از Clipboard
+          - به‌روزرسانی خودکار Subscriptionها
+          - بهبود صفحه تنظیمات و منوها
+          - بهبود ظاهر و هویت بصری MojAzad
+          - بهبود پایداری و تجربه کاربری
 
           ### فایل‌های دانلود
 
@@ -200,11 +220,13 @@ jobs:
           - x86_64
           - Universal
 
-          نسخه Universal برای دستگاه‌هایی است که معماری پردازنده آن‌ها مشخص نیست.
+          اگر معماری دستگاه خود را نمی‌دانید، نسخه Universal را دانلود کنید.
 
           Telegram: @MojAzadNet
 
           Support: @FreeWaveSup
+
+          Bot: @FreeWaveNetBot
           EOF
 
       - name: Create GitHub Release
@@ -225,7 +247,7 @@ jobs:
 
             gh release edit \
               "$RELEASE_TAG" \
-              --title "MojAzad $VERSION_NAME" \
+              --title "$RELEASE_TITLE" \
               --notes-file release-notes.md
 
           else
@@ -235,14 +257,14 @@ jobs:
               mojazad-release/*.apk \
               mojazad-release/SHA256SUMS.txt \
               --target "$GITHUB_SHA" \
-              --title "MojAzad $VERSION_NAME" \
+              --title "$RELEASE_TITLE" \
               --notes-file release-notes.md
           fi
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MojAzad-${{ env.VERSION_NAME }}-Release
+          name: MojAzad-V2-${{ env.VERSION_NAME }}-Release
           path: |
             ${{ github.workspace }}/mojazad-release/*.apk
             ${{ github.workspace }}/mojazad-release/SHA256SUMS.txt
