@@ -1167,7 +1167,7 @@ private fun applyRunningState(
                 )
             )
 
-        binding.tvConnectState.text =
+        binding.tvTestState.text =
             "Connecting"
 
         binding.fab.contentDescription =
