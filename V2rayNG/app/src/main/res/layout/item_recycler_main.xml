@@ -5,100 +5,120 @@
     android:id="@+id/item_bg"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="center_vertical">
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:paddingStart="6dp"
+    android:paddingTop="4dp"
+    android:paddingEnd="6dp"
+    android:paddingBottom="4dp">
 
     <LinearLayout
         android:id="@+id/info_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:background="?attr/selectableItemBackground"
+        android:background="@drawable/bg_mojazad_server_item"
         android:clickable="true"
         android:focusable="true"
-        android:gravity="center"
+        android:gravity="center_vertical"
+        android:minHeight="88dp"
         android:nextFocusRight="@+id/layout_share"
         android:orientation="horizontal"
-        android:paddingStart="@dimen/padding_spacing_dp4"
-        android:paddingTop="@dimen/padding_spacing_dp8"
-        android:paddingEnd="@dimen/padding_spacing_dp4"
-        android:paddingBottom="@dimen/padding_spacing_dp8">
+        android:paddingStart="6dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="10dp">
 
+        <!-- Selected server indicator -->
         <LinearLayout
             android:id="@+id/layout_indicator"
-            android:layout_width="@dimen/padding_spacing_dp4"
-            android:layout_height="match_parent"
-            android:layout_gravity="center"
+            android:layout_width="4dp"
+            android:layout_height="52dp"
+            android:layout_gravity="center_vertical"
             android:orientation="vertical" />
 
+        <!-- Server content -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <!-- Top row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
+                <!-- Name + subscription -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="4dp">
+
+                    <TextView
+                        android:id="@+id/tv_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="2"
+                        android:minLines="1"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Subhead"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        tools:text="MojAzad - Germany 01" />
 
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:paddingStart="@dimen/padding_spacing_dp8">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingTop="7dp">
 
-                        <TextView
-                            android:id="@+id/tv_name"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:maxLines="2"
-                            android:minLines="1"
-                            android:textAppearance="@style/TextAppearance.AppCompat.Subhead" />
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:paddingTop="@dimen/padding_spacing_dp8">
-
-                            <androidx.constraintlayout.widget.ConstraintLayout
-                                android:id="@+id/layout_subscription"
-                                android:layout_width="@dimen/image_size_dp24"
-                                android:layout_height="@dimen/image_size_dp24"
-                                android:layout_gravity="bottom"
-                                android:layout_marginEnd="@dimen/padding_spacing_dp4"
-                                android:background="@drawable/ic_circle">
-
-                                <TextView
-                                    android:id="@+id/tv_subscription"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:textAppearance="@style/TextAppearance.AppCompat.Small"
-                                    android:textSize="11sp"
-                                    app:layout_constraintBottom_toBottomOf="parent"
-                                    app:layout_constraintEnd_toEndOf="parent"
-                                    app:layout_constraintStart_toStartOf="parent"
-                                    app:layout_constraintTop_toTopOf="parent" />
-                            </androidx.constraintlayout.widget.ConstraintLayout>
+                        <androidx.constraintlayout.widget.ConstraintLayout
+                            android:id="@+id/layout_subscription"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/ic_circle">
 
                             <TextView
-                                android:id="@+id/tv_statistics"
+                                android:id="@+id/tv_subscription"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:lines="1"
-                                android:textAppearance="@style/TextAppearance.AppCompat.Small" />
+                                android:gravity="center"
+                                android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="10sp"
+                                android:textStyle="bold"
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintEnd_toEndOf="parent"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toTopOf="parent"
+                                tools:text="M" />
 
-                        </LinearLayout>
+                        </androidx.constraintlayout.widget.ConstraintLayout>
+
+                        <TextView
+                            android:id="@+id/tv_statistics"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:lines="1"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="11sp"
+                            tools:text="Subscription server" />
 
                     </LinearLayout>
 
                 </LinearLayout>
 
+                <!-- Actions -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -107,101 +127,110 @@
 
                     <LinearLayout
                         android:id="@+id/layout_share"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:contentDescription="@string/title_configuration_share"
                         android:focusable="true"
                         android:gravity="center"
                         android:nextFocusLeft="@+id/info_container"
-                        android:orientation="vertical"
-                        android:padding="@dimen/padding_spacing_dp8">
+                        android:orientation="vertical">
 
                         <ImageView
-                            android:layout_width="wrap_content"
-                            android:layout_height="@dimen/image_size_dp24"
-                            app:srcCompat="@drawable/ic_share_24dp" />
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:contentDescription="@null"
+                            app:srcCompat="@drawable/ic_share_24dp"
+                            app:tint="?attr/colorOnSurfaceVariant" />
 
                     </LinearLayout>
 
                     <LinearLayout
                         android:id="@+id/layout_edit"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:contentDescription="@string/menu_item_edit_config"
                         android:focusable="true"
                         android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="@dimen/padding_spacing_dp8">
+                        android:orientation="vertical">
 
                         <ImageView
-                            android:layout_width="@dimen/image_size_dp24"
-                            android:layout_height="@dimen/image_size_dp24"
-                            app:srcCompat="@drawable/ic_edit_24dp" />
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:contentDescription="@null"
+                            app:srcCompat="@drawable/ic_edit_24dp"
+                            app:tint="?attr/colorOnSurfaceVariant" />
 
                     </LinearLayout>
 
                     <LinearLayout
                         android:id="@+id/layout_remove"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:contentDescription="@string/menu_item_del_config"
                         android:focusable="true"
                         android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="@dimen/padding_spacing_dp8">
+                        android:orientation="vertical">
 
                         <ImageView
-                            android:layout_width="@dimen/image_size_dp24"
-                            android:layout_height="@dimen/image_size_dp24"
-                            app:srcCompat="@drawable/ic_delete_24dp" />
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:contentDescription="@null"
+                            app:srcCompat="@drawable/ic_delete_24dp"
+                            app:tint="@color/md_theme_error" />
 
                     </LinearLayout>
 
                     <LinearLayout
                         android:id="@+id/layout_more"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:contentDescription="@string/notification_action_more"
                         android:focusable="true"
                         android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="@dimen/padding_spacing_dp8">
+                        android:orientation="vertical">
 
                         <ImageView
-                            android:layout_width="@dimen/image_size_dp24"
-                            android:layout_height="@dimen/image_size_dp24"
-                            app:srcCompat="@drawable/ic_more_vert_24dp" />
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:contentDescription="@null"
+                            app:srcCompat="@drawable/ic_more_vert_24dp"
+                            app:tint="?attr/colorOnSurfaceVariant" />
 
                     </LinearLayout>
+
                 </LinearLayout>
 
             </LinearLayout>
 
+            <!-- Bottom row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="@dimen/padding_spacing_dp8"
-                android:paddingTop="@dimen/padding_spacing_dp8"
-                android:paddingEnd="@dimen/padding_spacing_dp8">
+                android:paddingStart="10dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="10dp">
 
                 <TextView
                     android:id="@+id/tv_type"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:ellipsize="end"
                     android:lines="1"
                     android:textAppearance="@style/TextAppearance.AppCompat.Small"
                     android:textColor="@color/colorConfigType"
                     android:textSize="11sp"
+                    android:textStyle="bold"
                     tools:text="VLESS" />
 
                 <TextView
@@ -211,8 +240,9 @@
                     android:lines="1"
                     android:textAppearance="@style/TextAppearance.AppCompat.Small"
                     android:textColor="@color/colorPing"
-                    android:textSize="11sp"
-                    tools:text="214ms" />
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="42 ms" />
 
             </LinearLayout>
 
