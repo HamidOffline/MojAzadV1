@@ -64,28 +64,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /*
      * MojAzad:
      *
-     * MainActivity observes this.
+     * MainActivity listens to this.
      *
      * true means:
-     * A successful automatic ping has finished,
-     * the best server has been selected,
-     * and the Activity may now connect.
+     * Ping finished successfully,
+     * the fastest valid server was selected,
+     * and MojAzad can now connect.
      */
     val autoConnectBestServerAction by lazy {
         MutableLiveData<Boolean>(false)
     }
 
     /*
-     * True only for MojAzad's automatic startup/activation ping.
+     * Only automatic MojAzad startup/activation Ping
+     * should trigger automatic connection.
      *
-     * A manual "Real Ping All" will leave this false,
-     * so manual testing will NOT automatically connect.
+     * Manual Ping must not auto-connect.
      */
     private var connectBestServerAfterPing =
         false
 
     /**
-     * Refer to the official documentation for registerReceiver.
+     * Start listening for service broadcasts.
      */
     fun startListenBroadcast() {
 
@@ -130,7 +130,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Reloads the server list based on current subscription filter.
+     * Reload server list.
      */
     fun reloadServerList() {
 
@@ -155,7 +155,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Removes a server by its GUID.
+     * Remove a server.
      */
     fun removeServer(
         guid: String
@@ -175,6 +175,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
 
         if (index >= 0) {
+
             serversCache.removeAt(
                 index
             )
@@ -182,7 +183,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Swaps the positions of two servers.
+     * Swap two servers.
      */
     fun swapServer(
         fromPosition: Int,
@@ -212,7 +213,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Updates the cache of servers.
+     * Update server cache.
      */
     @Synchronized
     fun updateCache() {
@@ -226,17 +227,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
 
                 if (kw.isNotEmpty()) {
+
                     Regex(
                         kw,
                         setOf(
                             RegexOption.IGNORE_CASE
                         )
                     )
+
                 } else {
+
                     null
                 }
 
             } catch (e: PatternSyntaxException) {
+
                 null
             }
 
@@ -303,7 +308,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Updates configuration via subscription.
+     * Update configuration via subscription.
      */
     fun updateConfigViaSubAll():
         SubscriptionUpdateResult {
@@ -333,7 +338,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Exports all servers.
+     * Export servers.
      */
     fun exportAllServer(): Int {
 
@@ -362,19 +367,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Tests the real ping for all servers.
+     * Test real ping for all currently loaded servers.
      *
-     * @param autoConnectAfterFinish
-     * false = normal/manual ping
-     * true = MojAzad startup ping:
-     *        sort -> choose best -> request auto-connect
+     * autoConnectAfterFinish = false:
+     * normal/manual Ping.
+     *
+     * autoConnectAfterFinish = true:
+     * MojAzad automatic startup Ping.
+     *
+     * After finishing:
+     * Sort -> Select fastest -> Auto-connect.
      */
     fun testAllRealPing(
         autoConnectAfterFinish: Boolean = false
     ) {
 
         /*
-         * Cancel any previous test batch.
+         * Cancel any previous Ping batch.
          */
         MessageUtil.sendMsg2TestService(
             getApplication(),
@@ -385,14 +394,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         /*
-         * Remember whether THIS new test batch
-         * should auto-connect after completion.
+         * Remember whether this batch should connect
+         * after testing finishes.
          */
         connectBestServerAfterPing =
             autoConnectAfterFinish
 
         /*
-         * Clear previous ping values.
+         * Clear old Ping results.
          */
         MmkvManager
             .clearAllTestDelayResults(
@@ -418,6 +427,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
+            /*
+             * MojAzad:
+             *
+             * Always send the exact currently-loaded
+             * server GUID list directly to CoreTestService.
+             *
+             * This fixes first activation where the servers
+             * have just been imported and the test service
+             * could otherwise try reading its own server list.
+             */
             MessageUtil.sendMsg2TestService(
                 getApplication(),
                 TestServiceMessage(
@@ -428,26 +447,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         subscriptionId,
 
                     serverGuids =
-                        if (
-                            keywordFilter.isNotEmpty()
-                        ) {
-
-                            serversCache
-                                .map {
-                                    it.guid
-                                }
-
-                        } else {
-
-                            emptyList()
-                        }
+                        serversCache
+                            .map {
+                                it.guid
+                            }
                 )
             )
         }
     }
 
     /**
-     * Tests current selected server.
+     * Test current selected server.
      */
     fun testCurrentServerRealPing() {
 
@@ -459,7 +469,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Changes subscription ID.
+     * Change subscription.
      */
     fun subscriptionIdChanged(
         id: String
@@ -480,7 +490,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Gets subscriptions.
+     * Get subscriptions.
      */
     fun getSubscriptions(
         context: Context
@@ -543,7 +553,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Gets the position of a server by GUID.
+     * Get server position by GUID.
      */
     fun getPosition(
         guid: String
@@ -563,7 +573,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Removes duplicate servers.
+     * Remove duplicate servers.
      */
     fun removeDuplicateServer(): Int {
 
@@ -635,7 +645,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Removes all servers.
+     * Remove all servers.
      */
     fun removeAllServer(): Int {
 
@@ -666,7 +676,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Removes invalid servers.
+     * Remove invalid servers.
      */
     fun removeInvalidServer(): Int {
 
@@ -703,7 +713,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Sorts servers by test results.
+     * Sort servers by Ping.
      */
     fun sortByTestResults() {
 
@@ -727,7 +737,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Sort servers for a subscription.
+     * Sort one subscription by Ping.
      */
     private fun sortByTestResultsForSub(
         subId: String
@@ -788,11 +798,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Finds the server with the smallest valid ping.
+     * Find the fastest successfully-tested server.
      *
-     * Only ping values > 0 are accepted.
-     * 0 = no valid test
-     * negative = failed test
+     * Only positive Ping values are valid.
+     *
+     * 0 = not tested
+     * negative = failed
      */
     private fun findBestTestedServer():
         String? {
@@ -827,7 +838,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Called after the full real-ping batch has completed.
+     * Called when the entire Ping batch finishes.
      */
     fun onTestsFinished() {
 
@@ -836,7 +847,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ) {
 
             /*
-             * Capture this before resetting it.
+             * Save this before resetting the flag.
              */
             val shouldAutoConnect =
                 connectBestServerAfterPing
@@ -845,8 +856,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 false
 
             /*
-             * Keep original v2rayNG behavior
-             * for users who enabled auto-remove.
+             * Keep normal v2rayNG behavior.
              */
             if (
                 MmkvManager.decodeSettingsBool(
@@ -858,10 +868,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             /*
-             * MojAzad startup ping always sorts.
+             * Automatic MojAzad test always sorts.
              *
-             * Manual ping only sorts when the normal
-             * v2rayNG Auto Sort preference is enabled.
+             * Manual Ping only sorts if the normal
+             * Auto Sort setting is enabled.
              */
             if (
                 shouldAutoConnect ||
@@ -874,7 +884,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             /*
-             * Find and select the fastest valid server.
+             * Find fastest valid server.
              */
             val bestServerGuid =
                 if (shouldAutoConnect) {
@@ -886,6 +896,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     null
                 }
 
+            /*
+             * Select fastest server.
+             */
             if (
                 !bestServerGuid.isNullOrBlank()
             ) {
@@ -900,19 +913,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ) {
 
                 /*
-                 * Reload so sorting and selected server
-                 * are immediately reflected in the UI.
+                 * Refresh UI after sorting.
                  */
                 reloadServerList()
 
+                /*
+                 * Tell MainActivity to connect.
+                 */
                 if (
                     !bestServerGuid
                         .isNullOrBlank()
                 ) {
 
-                    /*
-                     * Ask MainActivity to connect.
-                     */
                     autoConnectBestServerAction.value =
                         true
                 }
@@ -921,8 +933,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * MainActivity calls this immediately
-     * after consuming the auto-connect event.
+     * MainActivity calls this after handling
+     * the automatic connection event.
      */
     fun consumeAutoConnectBestServerAction() {
 
@@ -931,7 +943,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Initializes assets.
+     * Initialize assets.
      */
     fun initAssets(
         assets: AssetManager
@@ -949,7 +961,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Filters configuration.
+     * Filter servers.
      */
     fun filterConfig(
         keyword: String
@@ -968,6 +980,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         reloadServerList()
     }
 
+    /**
+     * Find subscription of currently-selected server.
+     */
     fun findSubscriptionIdBySelect():
         String? {
 
@@ -992,6 +1007,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ?.subscriptionId
     }
 
+    /**
+     * Broadcast receiver.
+     */
     private val mMsgReceiver =
         object : BroadcastReceiver() {
 
@@ -1115,12 +1133,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 )
 
                         /*
-                         * "0" means the whole batch completed normally.
+                         * 0 = Ping batch completed successfully.
                          *
-                         * A cancelled ping uses "-1",
-                         * so it will never accidentally auto-connect.
+                         * Cancelled/failed batches must not
+                         * automatically connect.
                          */
                         if (content == "0") {
+
                             onTestsFinished()
                         }
                     }
