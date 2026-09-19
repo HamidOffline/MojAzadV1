@@ -1147,16 +1147,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.tvTestState.text =
             content
     }
-
-    private fun applyRunningState(
-    private fun applyRunningState(
+    
+private fun applyRunningState(
     isLoading: Boolean,
     isRunning: Boolean
 ) {
 
-    if (
-        isLoading
-    ) {
+    if (isLoading) {
 
         binding.fab
             .setImageResource(
@@ -1175,15 +1172,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.tvConnectState.text =
             "Connecting"
 
+        binding.fab.contentDescription =
+            "Connecting"
+
         return
     }
 
-
-    if (
-        isRunning
-    ) {
-
-        isConnecting = false
+    if (isRunning) {
 
         binding.fab
             .setImageResource(
@@ -1202,13 +1197,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.tvConnectState.text =
             "Connected"
 
-
         binding.fab
             .contentDescription =
             getString(
                 R.string.action_stop_service
             )
-
 
         setTestState(
             getString(
@@ -1216,10 +1209,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             )
         )
 
+        binding.layoutTest.isFocusable =
+            true
 
     } else {
-
-        isConnecting = false
 
         binding.fab
             .setImageResource(
@@ -1235,10 +1228,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 )
             )
 
-
         binding.tvConnectState.text =
             "Connect"
-
 
         binding.fab
             .contentDescription =
@@ -1246,90 +1237,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 R.string.tasker_start_service
             )
 
-
         setTestState(
             getString(
                 R.string.connection_not_connected
             )
         )
+
+        binding.layoutTest.isFocusable =
+            false
     }
-} {
-
-            binding.fab
-                .setImageResource(
-                    R.drawable.ic_fab_check
-                )
-
-            return
-        }
-
-        if (
-            isRunning
-        ) {
-
-            binding.fab
-                .setImageResource(
-                    R.drawable.ic_stop_24dp
-                )
-
-            binding.fab
-                .backgroundTintList =
-                ColorStateList.valueOf(
-                    ContextCompat.getColor(
-                        this,
-                        R.color.color_fab_active
-                    )
-                )
-
-            binding.fab
-                .contentDescription =
-                getString(
-                    R.string.action_stop_service
-                )
-
-            setTestState(
-                getString(
-                    R.string.connection_connected
-                )
-            )
-
-            binding.layoutTest
-                .isFocusable =
-                true
-
-        } else {
-
-            binding.fab
-                .setImageResource(
-                    R.drawable.ic_play_24dp
-                )
-
-            binding.fab
-                .backgroundTintList =
-                ColorStateList.valueOf(
-                    ContextCompat.getColor(
-                        this,
-                        R.color.color_fab_inactive
-                    )
-                )
-
-            binding.fab
-                .contentDescription =
-                getString(
-                    R.string.tasker_start_service
-                )
-
-            setTestState(
-                getString(
-                    R.string.connection_not_connected
-                )
-            )
-
-            binding.layoutTest
-                .isFocusable =
-                false
-        }
-    }
+}
 
     override fun onResume() {
 
