@@ -6,22 +6,14 @@
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorBackground">
-
-    <!-- ================================================= -->
-    <!-- MojAzad V2 - Main Content                         -->
-    <!-- ================================================= -->
+    android:background="@color/md_theme_background">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="?attr/colorBackground"
+        android:background="@color/md_theme_background"
         android:fitsSystemWindows="true"
         android:orientation="vertical">
-
-        <!-- ===================== -->
-        <!-- Top App Bar           -->
-        <!-- ===================== -->
 
         <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
@@ -41,30 +33,21 @@
 
         </com.google.android.material.appbar.AppBarLayout>
 
-
-        <!-- ===================== -->
-        <!-- Main Area             -->
-        <!-- ===================== -->
-
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="?attr/colorBackground">
+            android:background="@color/md_theme_background">
 
             <androidx.coordinatorlayout.widget.CoordinatorLayout
                 android:id="@+id/main_content"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="?attr/colorBackground">
+                android:background="@color/md_theme_background">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="vertical">
-
-                    <!-- ===================== -->
-                    <!-- Loading Indicator     -->
-                    <!-- ===================== -->
 
                     <com.google.android.material.progressindicator.LinearProgressIndicator
                         android:id="@+id/progress_bar"
@@ -75,11 +58,6 @@
                         app:indicatorColor="@color/md_theme_primary"
                         app:trackColor="@color/md_theme_primaryContainer"
                         app:trackThickness="3dp" />
-
-
-                    <!-- ===================== -->
-                    <!-- Subscription Tabs     -->
-                    <!-- ===================== -->
 
                     <com.google.android.material.tabs.TabLayout
                         android:id="@+id/tab_group"
@@ -96,24 +74,14 @@
                         app:tabTextAppearance="@style/TabLayoutTextStyle"
                         app:tabTextColor="?attr/colorOnSurfaceVariant" />
 
-
-                    <!-- ===================== -->
-                    <!-- Server Pages          -->
-                    <!-- ===================== -->
-
                     <androidx.viewpager2.widget.ViewPager2
                         android:id="@+id/view_pager"
                         android:layout_width="match_parent"
                         android:layout_height="0dp"
                         android:layout_weight="1"
-                        android:background="?attr/colorBackground"
+                        android:background="@color/md_theme_background"
                         android:nextFocusRight="@+id/fab"
                         android:scrollbars="vertical" />
-
-
-                    <!-- ===================== -->
-                    <!-- Connection Test Area  -->
-                    <!-- ===================== -->
 
                     <LinearLayout
                         android:id="@+id/layout_test"
@@ -153,11 +121,6 @@
 
                 </LinearLayout>
 
-
-                <!-- ===================== -->
-                <!-- Main Connect Button   -->
-                <!-- ===================== -->
-
                 <FrameLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -191,11 +154,6 @@
         </RelativeLayout>
 
     </LinearLayout>
-
-
-    <!-- ================================================= -->
-    <!-- Navigation Drawer                                 -->
-    <!-- ================================================= -->
 
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
