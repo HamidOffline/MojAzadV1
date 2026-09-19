@@ -4,32 +4,56 @@ plugins {
     id("com.jaredsburrows.license")
 }
 
+/*
+ * MojAzad Release signing.
+ *
+ * Release builds MUST use the permanent MojAzad signing key.
+ * Debug builds continue working without these environment variables.
+ */
+val isReleaseBuildRequested =
+    gradle.startParameter.taskNames.any {
+        it.contains(
+            "Release",
+            ignoreCase = true
+        )
+    }
+
 android {
-    // Keep the original namespace so existing Kotlin/Java source packages
-    // continue to work without a large package refactor.
+    // Keep original source namespace.
     namespace = "com.v2ray.ang"
+
     compileSdk = 37
 
     defaultConfig {
-        // MojAzad application ID
         applicationId = "com.mojazad.vpn"
 
         minSdk = 24
         targetSdk = 37
-        versionCode = 736
-        versionName = "2.2.6"
+
+        /*
+         * MojAzad version.
+         */
+        versionCode = 737
+        versionName = "2.2.7"
+
         multiDexEnabled = true
 
         val abiFilterList =
-            (properties["ABI_FILTERS"] as? String)?.split(';')
+            (properties["ABI_FILTERS"] as? String)
+                ?.split(';')
 
         splits {
             abi {
                 isEnable = true
+
                 reset()
 
-                if (!abiFilterList.isNullOrEmpty()) {
-                    include(*abiFilterList.toTypedArray())
+                if (
+                    !abiFilterList.isNullOrEmpty()
+                ) {
+                    include(
+                        *abiFilterList.toTypedArray()
+                    )
                 } else {
                     include(
                         "arm64-v8a",
@@ -39,7 +63,12 @@ android {
                     )
                 }
 
-                isUniversalApk = abiFilterList.isNullOrEmpty()
+                /*
+                 * Full release builds also create:
+                 * universal APK.
+                 */
+                isUniversalApk =
+                    abiFilterList.isNullOrEmpty()
             }
         }
 
@@ -47,9 +76,75 @@ android {
             "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    /*
+     * Permanent MojAzad Release signing.
+     *
+     * Values are supplied by GitHub Actions secrets.
+     */
+    signingConfigs {
+        create("release") {
+
+            if (isReleaseBuildRequested) {
+
+                val keystorePath =
+                    System.getenv(
+                        "MOJAZAD_KEYSTORE_PATH"
+                    )
+                        ?: error(
+                            "MOJAZAD_KEYSTORE_PATH is missing"
+                        )
+
+                val keystorePassword =
+                    System.getenv(
+                        "MOJAZAD_KEYSTORE_PASSWORD"
+                    )
+                        ?: error(
+                            "MOJAZAD_KEYSTORE_PASSWORD is missing"
+                        )
+
+                val alias =
+                    System.getenv(
+                        "MOJAZAD_KEY_ALIAS"
+                    )
+                        ?: error(
+                            "MOJAZAD_KEY_ALIAS is missing"
+                        )
+
+                val aliasPassword =
+                    System.getenv(
+                        "MOJAZAD_KEY_PASSWORD"
+                    )
+                        ?: error(
+                            "MOJAZAD_KEY_PASSWORD is missing"
+                        )
+
+                storeFile =
+                    file(
+                        keystorePath
+                    )
+
+                storePassword =
+                    keystorePassword
+
+                keyAlias =
+                    alias
+
+                keyPassword =
+                    aliasPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            isDebuggable = false
+
+            signingConfig =
+                signingConfigs
+                    .getByName(
+                        "release"
+                    )
 
             proguardFiles(
                 getDefaultProguardFile(
@@ -60,14 +155,17 @@ android {
         }
     }
 
-    flavorDimensions.add("distribution")
+    flavorDimensions.add(
+        "distribution"
+    )
 
     productFlavors {
         create("fdroid") {
-            dimension = "distribution"
+            dimension =
+                "distribution"
 
-            // F-Droid build is installed as a separate package.
-            applicationIdSuffix = ".fdroid"
+            applicationIdSuffix =
+                ".fdroid"
 
             buildConfigField(
                 "String",
@@ -77,7 +175,8 @@ android {
         }
 
         create("playstore") {
-            dimension = "distribution"
+            dimension =
+                "distribution"
 
             buildConfigField(
                 "String",
@@ -89,26 +188,37 @@ android {
 
     sourceSets {
         getByName("main") {
-            jniLibs.srcDirs("libs")
+            jniLibs.srcDirs(
+                "libs"
+            )
         }
     }
 
     compileOptions {
-        isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled =
+            true
+
+        sourceCompatibility =
+            JavaVersion.VERSION_17
+
+        targetCompatibility =
+            JavaVersion.VERSION_17
     }
 
     kotlin {
         compilerOptions {
             jvmTarget.set(
-                org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+                org.jetbrains.kotlin.gradle.dsl
+                    .JvmTarget
+                    .JVM_17
             )
         }
     }
 
     applicationVariants.all {
-        val variant = this
+
+        val variant =
+            this
 
         val isFdroid =
             variant.productFlavors.any {
@@ -116,6 +226,7 @@ android {
             }
 
         if (isFdroid) {
+
             val versionCodes =
                 mapOf(
                     "armeabi-v7a" to 2,
@@ -132,24 +243,38 @@ android {
                 .forEach { output ->
 
                     val abi =
-                        output.getFilter("ABI")
+                        output.getFilter(
+                            "ABI"
+                        )
                             ?: "universal"
 
-                    // MojAzad APK filename
                     output.outputFileName =
                         "MojAzad_${variant.versionName}-fdroid_${abi}.apk"
 
-                    if (versionCodes.containsKey(abi)) {
+                    if (
+                        versionCodes.containsKey(
+                            abi
+                        )
+                    ) {
+
                         output.versionCodeOverride =
                             (
-                                100 * variant.versionCode +
+                                100 *
+                                    variant.versionCode +
                                     versionCodes[abi]!!
-                            ).plus(5000000)
+                                )
+                                .plus(
+                                    5000000
+                                )
+
                     } else {
+
                         return@forEach
                     }
                 }
+
         } else {
+
             val versionCodes =
                 mapOf(
                     "armeabi-v7a" to 4,
@@ -166,23 +291,31 @@ android {
                 .forEach { output ->
 
                     val abi =
-                        if (output.getFilter("ABI") != null) {
-                            output.getFilter("ABI")
-                        } else {
-                            "universal"
-                        }
+                        output.getFilter(
+                            "ABI"
+                        )
+                            ?: "universal"
 
-                    // MojAzad APK filename
                     output.outputFileName =
                         "MojAzad_${variant.versionName}_${abi}.apk"
 
-                    if (versionCodes.containsKey(abi)) {
+                    if (
+                        versionCodes.containsKey(
+                            abi
+                        )
+                    ) {
+
                         output.versionCodeOverride =
                             (
                                 1000000 *
                                     versionCodes[abi]!!
-                            ).plus(variant.versionCode)
+                                )
+                                .plus(
+                                    variant.versionCode
+                                )
+
                     } else {
+
                         return@forEach
                     }
                 }
@@ -190,80 +323,166 @@ android {
     }
 
     buildFeatures {
-        viewBinding = true
-        buildConfig = true
+        viewBinding =
+            true
+
+        buildConfig =
+            true
     }
 
     packaging {
         jniLibs {
-            useLegacyPackaging = true
+            useLegacyPackaging =
+                true
         }
     }
 }
 
 dependencies {
-    // Core Libraries
+
     implementation(
         fileTree(
             mapOf(
                 "dir" to "libs",
-                "include" to listOf("*.aar", "*.jar")
+                "include" to listOf(
+                    "*.aar",
+                    "*.jar"
+                )
             )
         )
     )
 
-    // AndroidX Core Libraries
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.activity)
-    implementation(libs.androidx.constraintlayout)
-    implementation(libs.preference.ktx)
-    implementation(libs.recyclerview)
-    implementation(libs.androidx.swiperefreshlayout)
-    implementation(libs.androidx.viewpager2)
-    implementation(libs.androidx.fragment)
+    implementation(
+        libs.androidx.core.ktx
+    )
 
-    // UI Libraries
-    implementation(libs.material)
-    implementation(libs.toasty)
-    implementation(libs.editorkit)
-    implementation(libs.flexbox)
+    implementation(
+        libs.androidx.appcompat
+    )
 
-    // Data and Storage Libraries
-    implementation(libs.mmkv.static)
-    implementation(libs.gson)
-    implementation(libs.okhttp)
+    implementation(
+        libs.androidx.activity
+    )
 
-    // Reactive and Utility Libraries
-    implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.coroutines.core)
+    implementation(
+        libs.androidx.constraintlayout
+    )
 
-    // Language and Processing Libraries
-    implementation(libs.language.base)
-    implementation(libs.language.json)
+    implementation(
+        libs.preference.ktx
+    )
 
-    // Intent and Utility Libraries
-    implementation(libs.quickie.foss)
-    implementation(libs.core)
+    implementation(
+        libs.recyclerview
+    )
 
-    // AndroidX Lifecycle and Architecture Components
-    implementation(libs.lifecycle.viewmodel.ktx)
-    implementation(libs.lifecycle.livedata.ktx)
-    implementation(libs.lifecycle.runtime.ktx)
+    implementation(
+        libs.androidx.swiperefreshlayout
+    )
 
-    // Background Task Libraries
-    implementation(libs.work.runtime.ktx)
-    implementation(libs.work.multiprocess)
+    implementation(
+        libs.androidx.viewpager2
+    )
 
-    // Multidex Support
-    implementation(libs.multidex)
+    implementation(
+        libs.androidx.fragment
+    )
 
-    // Testing Libraries
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    testImplementation(libs.org.mockito.mockito.inline)
-    testImplementation(libs.mockito.kotlin)
+    implementation(
+        libs.material
+    )
+
+    implementation(
+        libs.toasty
+    )
+
+    implementation(
+        libs.editorkit
+    )
+
+    implementation(
+        libs.flexbox
+    )
+
+    implementation(
+        libs.mmkv.static
+    )
+
+    implementation(
+        libs.gson
+    )
+
+    implementation(
+        libs.okhttp
+    )
+
+    implementation(
+        libs.kotlinx.coroutines.android
+    )
+
+    implementation(
+        libs.kotlinx.coroutines.core
+    )
+
+    implementation(
+        libs.language.base
+    )
+
+    implementation(
+        libs.language.json
+    )
+
+    implementation(
+        libs.quickie.foss
+    )
+
+    implementation(
+        libs.core
+    )
+
+    implementation(
+        libs.lifecycle.viewmodel.ktx
+    )
+
+    implementation(
+        libs.lifecycle.livedata.ktx
+    )
+
+    implementation(
+        libs.lifecycle.runtime.ktx
+    )
+
+    implementation(
+        libs.work.runtime.ktx
+    )
+
+    implementation(
+        libs.work.multiprocess
+    )
+
+    implementation(
+        libs.multidex
+    )
+
+    testImplementation(
+        libs.junit
+    )
+
+    androidTestImplementation(
+        libs.androidx.junit
+    )
+
+    androidTestImplementation(
+        libs.androidx.espresso.core
+    )
+
+    testImplementation(
+        libs.org.mockito.mockito.inline
+    )
+
+    testImplementation(
+        libs.mockito.kotlin
+    )
 
     coreLibraryDesugaring(
         libs.desugar.jdk.libs
