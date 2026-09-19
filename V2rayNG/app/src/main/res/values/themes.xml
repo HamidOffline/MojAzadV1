@@ -7,189 +7,65 @@
 
     <style name="AppThemeBase" parent="Theme.Material3.DayNight">
 
-        <!-- ===================== -->
-        <!-- Primary               -->
-        <!-- ===================== -->
-
+        <!-- Primary -->
         <item name="colorPrimary">@color/md_theme_primary</item>
         <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/md_theme_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/md_theme_onPrimaryContainer</item>
 
-        <item name="colorPrimaryContainer">
-            @color/md_theme_primaryContainer
-        </item>
-
-        <item name="colorOnPrimaryContainer">
-            @color/md_theme_onPrimaryContainer
-        </item>
-
-
-        <!-- ===================== -->
-        <!-- Secondary             -->
-        <!-- ===================== -->
-
+        <!-- Secondary -->
         <item name="colorSecondary">@color/md_theme_secondary</item>
         <item name="colorOnSecondary">@color/md_theme_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/md_theme_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/md_theme_onSecondaryContainer</item>
 
-        <item name="colorSecondaryContainer">
-            @color/md_theme_secondaryContainer
-        </item>
-
-        <item name="colorOnSecondaryContainer">
-            @color/md_theme_onSecondaryContainer
-        </item>
-
-
-        <!-- ===================== -->
-        <!-- Tertiary              -->
-        <!-- ===================== -->
-
+        <!-- Tertiary -->
         <item name="colorTertiary">@color/md_theme_tertiary</item>
         <item name="colorOnTertiary">@color/md_theme_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/md_theme_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/md_theme_onTertiaryContainer</item>
 
-        <item name="colorTertiaryContainer">
-            @color/md_theme_tertiaryContainer
-        </item>
-
-        <item name="colorOnTertiaryContainer">
-            @color/md_theme_onTertiaryContainer
-        </item>
-
-
-        <!-- ===================== -->
-        <!-- Error                 -->
-        <!-- ===================== -->
-
+        <!-- Error -->
         <item name="colorError">@color/md_theme_error</item>
         <item name="colorOnError">@color/md_theme_onError</item>
+        <item name="colorErrorContainer">@color/md_theme_errorContainer</item>
+        <item name="colorOnErrorContainer">@color/md_theme_onErrorContainer</item>
 
-        <item name="colorErrorContainer">
-            @color/md_theme_errorContainer
-        </item>
+        <!-- Background -->
+        <item name="android:colorBackground">@color/md_theme_background</item>
+        <item name="colorOnBackground">@color/md_theme_onBackground</item>
+        <item name="android:windowBackground">@color/md_theme_background</item>
 
-        <item name="colorOnErrorContainer">
-            @color/md_theme_onErrorContainer
-        </item>
-
-
-        <!-- ===================== -->
-        <!-- Background            -->
-        <!-- ===================== -->
-
-        <item name="android:colorBackground">
-            @color/md_theme_background
-        </item>
-
-        <item name="colorOnBackground">
-            @color/md_theme_onBackground
-        </item>
-
-        <item name="android:windowBackground">
-            @color/md_theme_background
-        </item>
-
-
-        <!-- ===================== -->
-        <!-- Surface               -->
-        <!-- ===================== -->
-
-        <item name="colorSurface">
-            @color/md_theme_surface
-        </item>
-
-        <item name="colorOnSurface">
-            @color/md_theme_onSurface
-        </item>
-
-        <item name="colorSurfaceVariant">
-            @color/md_theme_surfaceVariant
-        </item>
-
-        <item name="colorOnSurfaceVariant">
-            @color/md_theme_onSurfaceVariant
-        </item>
-
+        <!-- Surface -->
+        <item name="colorSurface">@color/md_theme_surface</item>
+        <item name="colorOnSurface">@color/md_theme_onSurface</item>
+        <item name="colorSurfaceVariant">@color/md_theme_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/md_theme_onSurfaceVariant</item>
 
         <!-- Material 3 Surface Containers -->
+        <item name="colorSurfaceContainer">@color/md_theme_surface</item>
+        <item name="colorSurfaceContainerHigh">@color/md_theme_surfaceVariant</item>
+        <item name="colorSurfaceContainerHighest">@color/md_theme_surfaceVariant</item>
+        <item name="colorSurfaceContainerLow">@color/md_theme_surface</item>
+        <item name="colorSurfaceContainerLowest">@color/md_theme_background</item>
 
-        <item name="colorSurfaceContainer">
-            @color/md_theme_surface
-        </item>
+        <!-- Inverse Surface -->
+        <item name="colorSurfaceInverse">@color/md_theme_inverseSurface</item>
+        <item name="colorOnSurfaceInverse">@color/md_theme_inverseOnSurface</item>
+        <item name="colorPrimaryInverse">@color/md_theme_inversePrimary</item>
 
-        <item name="colorSurfaceContainerHigh">
-            @color/md_theme_surfaceVariant
-        </item>
+        <!-- Outline -->
+        <item name="colorOutline">@color/md_theme_outline</item>
+        <item name="colorOutlineVariant">@color/md_theme_outlineVariant</item>
 
-        <item name="colorSurfaceContainerHighest">
-            @color/md_theme_surfaceVariant
-        </item>
+        <!-- Controls -->
+        <item name="colorControlActivated">@color/md_theme_primary</item>
+        <item name="colorControlHighlight">@color/md_theme_primaryContainer</item>
+        <item name="android:colorAccent">@color/md_theme_primary</item>
 
-        <item name="colorSurfaceContainerLow">
-            @color/md_theme_surface
-        </item>
-
-        <item name="colorSurfaceContainerLowest">
-            @color/md_theme_background
-        </item>
-
-
-        <!-- ===================== -->
-        <!-- Inverse Surface       -->
-        <!-- ===================== -->
-
-        <item name="colorSurfaceInverse">
-            @color/md_theme_inverseSurface
-        </item>
-
-        <item name="colorOnSurfaceInverse">
-            @color/md_theme_inverseOnSurface
-        </item>
-
-        <item name="colorPrimaryInverse">
-            @color/md_theme_inversePrimary
-        </item>
-
-
-        <!-- ===================== -->
-        <!-- Outline               -->
-        <!-- ===================== -->
-
-        <item name="colorOutline">
-            @color/md_theme_outline
-        </item>
-
-        <item name="colorOutlineVariant">
-            @color/md_theme_outlineVariant
-        </item>
-
-
-        <!-- ===================== -->
-        <!-- Controls              -->
-        <!-- ===================== -->
-
-        <item name="colorControlActivated">
-            @color/md_theme_primary
-        </item>
-
-        <item name="colorControlHighlight">
-            @color/md_theme_primaryContainer
-        </item>
-
-        <item name="android:colorAccent">
-            @color/md_theme_primary
-        </item>
-
-
-        <!-- ===================== -->
-        <!-- System Bars           -->
-        <!-- ===================== -->
-
-        <item name="android:statusBarColor">
-            @color/md_theme_surface
-        </item>
-
-        <item name="android:navigationBarColor">
-            @color/md_theme_surface
-        </item>
+        <!-- System Bars -->
+        <item name="android:statusBarColor">@color/md_theme_surface</item>
+        <item name="android:navigationBarColor">@color/md_theme_surface</item>
 
         <item
             name="android:navigationBarDividerColor"
@@ -197,15 +73,7 @@
             @color/md_theme_outlineVariant
         </item>
 
-
-        <!-- ===================== -->
-        <!-- Dark Mode Handling    -->
-        <!-- ===================== -->
-
-        <!--
-            MojAzad has its own Night resources.
-            Prevent Android Force Dark from altering branded colors.
-        -->
+        <!-- MojAzad handles its own Night colors -->
         <item
             name="android:forceDarkAllowed"
             tools:targetApi="29">
@@ -216,17 +84,15 @@
 
 
     <!-- ================================================= -->
-    <!-- MojAzad V2 - Default / Light Mode                 -->
+    <!-- MojAzad V2 - Light / Default Theme                -->
     <!-- ================================================= -->
 
     <style name="AppThemeDayNight" parent="AppThemeBase">
 
-        <!-- Dark icons on light status bar -->
         <item name="android:windowLightStatusBar">
             true
         </item>
 
-        <!-- Dark icons on light navigation bar -->
         <item
             name="android:windowLightNavigationBar"
             tools:targetApi="27">
@@ -237,26 +103,44 @@
 
 
     <!-- ================================================= -->
-    <!-- MojAzad V2 - No ActionBar                         -->
+    <!-- No ActionBar                                      -->
     <!-- ================================================= -->
 
     <style
         name="AppThemeDayNight.NoActionBar"
         parent="AppThemeDayNight">
 
-        <item name="windowActionBar">
-            false
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+
+    </style>
+
+
+    <!-- ================================================= -->
+    <!-- MojAzad Splash Theme - Android 7 to Android 11    -->
+    <!-- ================================================= -->
+
+    <style
+        name="MojAzadSplashTheme"
+        parent="AppThemeDayNight.NoActionBar">
+
+        <item name="android:windowBackground">
+            @drawable/splash_mojazad
         </item>
 
-        <item name="windowNoTitle">
-            true
+        <item name="android:statusBarColor">
+            @color/md_theme_background
+        </item>
+
+        <item name="android:navigationBarColor">
+            @color/md_theme_background
         </item>
 
     </style>
 
 
     <!-- ================================================= -->
-    <!-- MojAzad V2 - Transparent Window                   -->
+    <!-- Transparent Window                                -->
     <!-- ================================================= -->
 
     <style
