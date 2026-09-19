@@ -1149,13 +1149,111 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun applyRunningState(
-        isLoading: Boolean,
-        isRunning: Boolean
+    private fun applyRunningState(
+    isLoading: Boolean,
+    isRunning: Boolean
+) {
+
+    if (
+        isLoading
     ) {
 
-        if (
-            isLoading
-        ) {
+        binding.fab
+            .setImageResource(
+                R.drawable.ic_fab_check
+            )
+
+        binding.fab
+            .backgroundTintList =
+            ColorStateList.valueOf(
+                ContextCompat.getColor(
+                    this,
+                    R.color.md_theme_primary
+                )
+            )
+
+        binding.tvConnectState.text =
+            "Connecting"
+
+        return
+    }
+
+
+    if (
+        isRunning
+    ) {
+
+        isConnecting = false
+
+        binding.fab
+            .setImageResource(
+                R.drawable.ic_stop_24dp
+            )
+
+        binding.fab
+            .backgroundTintList =
+            ColorStateList.valueOf(
+                ContextCompat.getColor(
+                    this,
+                    R.color.color_fab_active
+                )
+            )
+
+        binding.tvConnectState.text =
+            "Connected"
+
+
+        binding.fab
+            .contentDescription =
+            getString(
+                R.string.action_stop_service
+            )
+
+
+        setTestState(
+            getString(
+                R.string.connection_connected
+            )
+        )
+
+
+    } else {
+
+        isConnecting = false
+
+        binding.fab
+            .setImageResource(
+                R.drawable.ic_play_24dp
+            )
+
+        binding.fab
+            .backgroundTintList =
+            ColorStateList.valueOf(
+                ContextCompat.getColor(
+                    this,
+                    R.color.color_fab_inactive
+                )
+            )
+
+
+        binding.tvConnectState.text =
+            "Connect"
+
+
+        binding.fab
+            .contentDescription =
+            getString(
+                R.string.tasker_start_service
+            )
+
+
+        setTestState(
+            getString(
+                R.string.connection_not_connected
+            )
+        )
+    }
+} {
 
             binding.fab
                 .setImageResource(
