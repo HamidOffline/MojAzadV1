@@ -72,11 +72,11 @@
                         app:tabTextAppearance="@style/TabLayoutTextStyle"
                         app:tabTextColor="?attr/colorOnSurfaceVariant" />
 
-                    <!-- MojAzad V3 - Auto Failover -->
+                    <!-- MojAzad - Compact Auto Failover -->
                     <LinearLayout
                         android:id="@+id/layout_auto_failover"
                         android:layout_width="match_parent"
-                        android:layout_height="50dp"
+                        android:layout_height="44dp"
                         android:background="?attr/colorSurface"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
@@ -85,9 +85,10 @@
 
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_weight="1"
-                            android:orientation="vertical">
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -97,13 +98,30 @@
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:text="تعویض خودکار سرور هنگام قطع اتصال"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="10sp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_auto_failover_info"
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:layout_marginStart="7dp"
+                                android:contentDescription="Auto Failover information"
+                                android:gravity="center"
+                                android:minWidth="0dp"
+                                android:minHeight="0dp"
+                                android:padding="0dp"
+                                android:text="i"
+                                android:textAllCaps="false"
+                                android:textColor="@color/md_theme_primary"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                app:backgroundTint="@android:color/transparent"
+                                app:cornerRadius="14dp"
+                                app:insetBottom="0dp"
+                                app:insetLeft="0dp"
+                                app:insetRight="0dp"
+                                app:insetTop="0dp"
+                                app:rippleColor="@color/md_theme_primaryContainer"
+                                app:strokeColor="@color/md_theme_primary"
+                                app:strokeWidth="1dp" />
 
                         </LinearLayout>
 
@@ -158,6 +176,7 @@
                             android:paddingEnd="116dp"
                             android:paddingBottom="9dp">
 
+                            <!-- Server + Ping + Health -->
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -199,6 +218,7 @@
 
                             </LinearLayout>
 
+                            <!-- Country / IP -->
                             <TextView
                                 android:id="@+id/tv_test_state"
                                 android:layout_width="match_parent"
@@ -210,6 +230,7 @@
                                 android:textColor="?attr/colorOnSurfaceVariant"
                                 android:textSize="10sp" />
 
+                            <!-- Download / Upload / Duration -->
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
