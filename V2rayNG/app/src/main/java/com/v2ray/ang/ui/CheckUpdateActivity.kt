@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
@@ -59,6 +60,7 @@ class CheckUpdateActivity : BaseActivity() {
     }
 
     private val binding by lazy {
+
         ActivityCheckUpdateBinding.inflate(
             layoutInflater
         )
@@ -71,6 +73,13 @@ class CheckUpdateActivity : BaseActivity() {
      */
     private var pendingInstallFile:
         File? = null
+
+    /*
+     * Prevent multiple simultaneous update checks
+     * or downloads.
+     */
+    private var updateOperationRunning =
+        false
 
     private val requestInstallPermission =
         registerForActivityResult(
@@ -89,6 +98,11 @@ class CheckUpdateActivity : BaseActivity() {
                 pendingInstallFile =
                     null
 
+                showUpdateStatus(
+                    "فایل آپدیت پیدا نشد",
+                    false
+                )
+
                 return@registerForActivityResult
             }
 
@@ -99,6 +113,11 @@ class CheckUpdateActivity : BaseActivity() {
                     .canRequestPackageInstalls()
             ) {
 
+                showUpdateStatus(
+                    "برای نصب، اجازه «نصب برنامه ناشناس» را برای MojAzad فعال کنید",
+                    false
+                )
+
                 toastError(
                     "اجازه نصب برنامه از این منبع فعال نشد"
                 )
@@ -108,6 +127,11 @@ class CheckUpdateActivity : BaseActivity() {
 
             pendingInstallFile =
                 null
+
+            showUpdateStatus(
+                "آپدیت آماده نصب است",
+                false
+            )
 
             openAndroidInstaller(
                 apkFile
@@ -132,6 +156,13 @@ class CheckUpdateActivity : BaseActivity() {
 
         binding.layoutCheckUpdate
             .setOnClickListener {
+
+                if (
+                    updateOperationRunning
+                ) {
+
+                    return@setOnClickListener
+                }
 
                 checkForUpdates(
                     binding.checkPreRelease
@@ -163,15 +194,98 @@ class CheckUpdateActivity : BaseActivity() {
                     it
             }
 
+        hideUpdateStatus()
+
         checkForUpdates(
             binding.checkPreRelease
                 .isChecked
         )
     }
 
+    /*
+     * =========================================================
+     * MojAzad V3 Update Status UI
+     * =========================================================
+     */
+
+    private fun showUpdateStatus(
+        message: String,
+        showProgress: Boolean
+    ) {
+
+        binding.layoutUpdateStatus.visibility =
+            View.VISIBLE
+
+        binding.tvUpdateStatus.text =
+            message
+
+        binding.progressUpdate.visibility =
+            if (
+                showProgress
+            ) {
+
+                View.VISIBLE
+
+            } else {
+
+                View.GONE
+            }
+
+        binding.progressUpdate.isIndeterminate =
+            true
+    }
+
+    private fun hideUpdateStatus() {
+
+        binding.layoutUpdateStatus.visibility =
+            View.GONE
+
+        binding.progressUpdate.visibility =
+            View.GONE
+    }
+
+    private fun setUpdateOperationRunning(
+        running: Boolean
+    ) {
+
+        updateOperationRunning =
+            running
+
+        binding.layoutCheckUpdate.isEnabled =
+            !running
+
+        binding.layoutCheckUpdate.isClickable =
+            !running
+
+        binding.checkPreRelease.isEnabled =
+            !running
+    }
+
+    /*
+     * =========================================================
+     * Check update
+     * =========================================================
+     */
+
     private fun checkForUpdates(
         includePreRelease: Boolean
     ) {
+
+        if (
+            updateOperationRunning
+        ) {
+
+            return
+        }
+
+        setUpdateOperationRunning(
+            true
+        )
+
+        showUpdateStatus(
+            "در حال بررسی نسخه جدید...",
+            true
+        )
 
         toast(
             R.string.update_checking_for_update
@@ -193,11 +307,29 @@ class CheckUpdateActivity : BaseActivity() {
                     result.hasUpdate
                 ) {
 
+                    val version =
+                        result.releaseTag
+                            ?.takeIf {
+                                it.isNotBlank()
+                            }
+                            ?: result.latestVersion
+                            ?: "نسخه جدید"
+
+                    showUpdateStatus(
+                        "$version آماده دانلود است",
+                        false
+                    )
+
                     showUpdateDialog(
                         result
                     )
 
                 } else {
+
+                    showUpdateStatus(
+                        "MojAzad به‌روز است",
+                        false
+                    )
 
                     toastSuccess(
                         R.string.update_already_latest_version
@@ -214,6 +346,11 @@ class CheckUpdateActivity : BaseActivity() {
                     e
                 )
 
+                showUpdateStatus(
+                    "بررسی آپدیت انجام نشد",
+                    false
+                )
+
                 toastError(
                     e.message
                         ?: getString(
@@ -224,6 +361,10 @@ class CheckUpdateActivity : BaseActivity() {
             } finally {
 
                 hideLoading()
+
+                setUpdateOperationRunning(
+                    false
+                )
             }
         }
     }
@@ -310,6 +451,13 @@ class CheckUpdateActivity : BaseActivity() {
         result: CheckUpdateResult
     ) {
 
+        if (
+            updateOperationRunning
+        ) {
+
+            return
+        }
+
         val downloadUrl =
             result.downloadUrl
                 ?.trim()
@@ -319,12 +467,34 @@ class CheckUpdateActivity : BaseActivity() {
             downloadUrl.isBlank()
         ) {
 
+            showUpdateStatus(
+                "لینک دانلود آپدیت پیدا نشد",
+                false
+            )
+
             toastError(
                 "لینک دانلود آپدیت پیدا نشد"
             )
 
             return
         }
+
+        val version =
+            result.releaseTag
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?: result.latestVersion
+                ?: "نسخه جدید"
+
+        setUpdateOperationRunning(
+            true
+        )
+
+        showUpdateStatus(
+            "در حال دانلود $version...",
+            true
+        )
 
         toast(
             "در حال دانلود آپدیت..."
@@ -350,6 +520,11 @@ class CheckUpdateActivity : BaseActivity() {
                     apkFile == null
                 ) {
 
+                    showUpdateStatus(
+                        "دانلود آپدیت انجام نشد",
+                        false
+                    )
+
                     toastError(
                         "دانلود آپدیت انجام نشد"
                     )
@@ -357,14 +532,19 @@ class CheckUpdateActivity : BaseActivity() {
                     return@launch
                 }
 
+                showUpdateStatus(
+                    "در حال بررسی امنیت و امضای APK...",
+                    true
+                )
+
                 /*
                  * Before sending anything to Android's
                  * package installer, verify that:
                  *
                  * 1. It is a real APK.
                  * 2. Package ID is MojAzad.
-                 * 3. APK is signed with the same key
-                 *    as the currently installed app.
+                 * 3. Release APK is signed with the
+                 *    same production signing key.
                  */
                 val verificationError =
                     withContext(
@@ -387,12 +567,22 @@ class CheckUpdateActivity : BaseActivity() {
                         "Update APK verification failed: $verificationError"
                     )
 
+                    showUpdateStatus(
+                        "بررسی امنیت APK ناموفق بود",
+                        false
+                    )
+
                     toastError(
                         verificationError
                     )
 
                     return@launch
                 }
+
+                showUpdateStatus(
+                    "دانلود کامل شد — آماده نصب",
+                    false
+                )
 
                 toast(
                     "دانلود کامل شد"
@@ -412,6 +602,11 @@ class CheckUpdateActivity : BaseActivity() {
                     e
                 )
 
+                showUpdateStatus(
+                    "دانلود آپدیت انجام نشد",
+                    false
+                )
+
                 toastError(
                     e.message
                         ?: "دانلود آپدیت انجام نشد"
@@ -420,6 +615,10 @@ class CheckUpdateActivity : BaseActivity() {
             } finally {
 
                 hideLoading()
+
+                setUpdateOperationRunning(
+                    false
+                )
             }
         }
     }
@@ -535,7 +734,8 @@ class CheckUpdateActivity : BaseActivity() {
         var downloaded =
             HttpUtil.downloadToFile(
                 UrlContentRequest(
-                    url = downloadUrl,
+                    url =
+                        downloadUrl,
                     timeout =
                         APK_DOWNLOAD_TIMEOUT_MS
                 ),
@@ -642,12 +842,18 @@ class CheckUpdateActivity : BaseActivity() {
 
     /**
      * Verifies that the downloaded APK really belongs
-     * to the installed MojAzad application.
+     * to MojAzad.
      *
-     * This prevents accidentally installing:
-     * - a wrong GitHub asset
-     * - an APK with another package ID
-     * - an APK signed with another signing key
+     * Release build:
+     * - APK must use MojAzad package ID.
+     * - APK must have the same signing certificate.
+     *
+     * Debug build:
+     * - Package ID is still checked.
+     * - Signing comparison is skipped because the
+     *   installed debug APK uses Android's debug key,
+     *   while GitHub releases use MojAzad's permanent
+     *   production signing key.
      */
     private fun verifyDownloadedApk(
         apkFile: File
@@ -665,6 +871,24 @@ class CheckUpdateActivity : BaseActivity() {
         ) {
 
             return "شناسه APK دانلودشده با MojAzad مطابقت ندارد"
+        }
+
+        /*
+         * Debug builds are only used for development.
+         *
+         * A Debug APK and a Release APK naturally
+         * have different signing certificates.
+         */
+        if (
+            BuildConfig.DEBUG
+        ) {
+
+            LogUtil.i(
+                AppConfig.TAG,
+                "Debug build: production signature comparison skipped"
+            )
+
+            return null
         }
 
         val installedInfo =
@@ -854,6 +1078,11 @@ class CheckUpdateActivity : BaseActivity() {
             pendingInstallFile =
                 apkFile
 
+            showUpdateStatus(
+                "برای ادامه، اجازه نصب برنامه از MojAzad را فعال کنید",
+                false
+            )
+
             try {
 
                 val settingsIntent =
@@ -882,6 +1111,11 @@ class CheckUpdateActivity : BaseActivity() {
 
                 pendingInstallFile =
                     null
+
+                showUpdateStatus(
+                    "باز کردن تنظیمات نصب امکان‌پذیر نیست",
+                    false
+                )
 
                 toastError(
                     "باز کردن تنظیمات نصب برنامه امکان‌پذیر نیست"
@@ -936,6 +1170,11 @@ class CheckUpdateActivity : BaseActivity() {
                         )
                 }
 
+            showUpdateStatus(
+                "نصب‌کننده اندروید باز شد",
+                false
+            )
+
             startActivity(
                 installIntent
             )
@@ -950,6 +1189,11 @@ class CheckUpdateActivity : BaseActivity() {
                 e
             )
 
+            showUpdateStatus(
+                "نصب‌کننده APK در دستگاه پیدا نشد",
+                false
+            )
+
             toastError(
                 "نصب‌کننده APK در دستگاه پیدا نشد"
             )
@@ -962,6 +1206,11 @@ class CheckUpdateActivity : BaseActivity() {
                 AppConfig.TAG,
                 "Failed to open Android installer",
                 e
+            )
+
+            showUpdateStatus(
+                "باز کردن نصب‌کننده انجام نشد",
+                false
             )
 
             toastError(
