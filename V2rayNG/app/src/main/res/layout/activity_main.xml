@@ -130,128 +130,136 @@
                         android:background="@color/md_theme_background"
                         android:scrollbars="vertical" />
 
-                    <!-- MojAzad V3 - Connection Dashboard -->
-                    <LinearLayout
+                    <!-- MojAzad - Professional Connection Card -->
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/layout_test"
                         android:layout_width="match_parent"
-                        android:layout_height="92dp"
-                        android:background="?attr/colorSurface"
+                        android:layout_height="96dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_marginBottom="6dp"
                         android:clickable="true"
                         android:contentDescription="Connection dashboard"
-                        android:elevation="6dp"
                         android:focusable="true"
-                        android:orientation="vertical"
-                        android:paddingStart="18dp"
-                        android:paddingTop="7dp"
-                        android:paddingEnd="124dp"
-                        android:paddingBottom="7dp">
+                        app:cardBackgroundColor="?attr/colorSurface"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="4dp"
+                        app:strokeColor="@color/divider_color_light"
+                        app:strokeWidth="1dp">
 
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginBottom="5dp"
-                            android:background="@color/divider_color_light" />
-
-                        <!-- Server + Ping + Health -->
                         <LinearLayout
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                            android:orientation="vertical"
+                            android:paddingStart="14dp"
+                            android:paddingTop="9dp"
+                            android:paddingEnd="116dp"
+                            android:paddingBottom="9dp">
 
-                            <TextView
-                                android:id="@+id/tv_dashboard_server"
-                                android:layout_width="0dp"
+                            <!-- Server + Ping + Health -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/tv_dashboard_server"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:lines="1"
+                                    android:text="Disconnected"
+                                    android:textColor="?attr/colorOnSurface"
+                                    android:textSize="14sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/tv_dashboard_ping"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:lines="1"
+                                    android:text="-- ms"
+                                    android:textColor="@color/colorPing"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold" />
+
+                                <ImageView
+                                    android:id="@+id/iv_dashboard_health"
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:layout_marginStart="5dp"
+                                    android:contentDescription="Server health"
+                                    android:visibility="gone"
+                                    app:srcCompat="@drawable/ic_health_excellent"
+                                    app:tint="@color/colorPing" />
+
+                            </LinearLayout>
+
+                            <!-- Country / IP -->
+                            <TextView
+                                android:id="@+id/tv_test_state"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
                                 android:ellipsize="end"
                                 android:lines="1"
-                                android:text="Disconnected"
-                                android:textColor="?attr/colorOnSurface"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tv_dashboard_ping"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:lines="1"
-                                android:text="-- ms"
-                                android:textColor="@color/colorPing"
-                                android:textSize="12sp"
-                                android:textStyle="bold" />
-
-                            <ImageView
-                                android:id="@+id/iv_dashboard_health"
-                                android:layout_width="17dp"
-                                android:layout_height="17dp"
-                                android:layout_marginStart="5dp"
-                                android:contentDescription="Server health"
-                                android:visibility="gone"
-                                app:srcCompat="@drawable/ic_health_excellent"
-                                app:tint="@color/colorPing" />
-
-                        </LinearLayout>
-
-                        <!-- Country / IP -->
-                        <TextView
-                            android:id="@+id/tv_test_state"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:ellipsize="end"
-                            android:lines="1"
-                            android:text="@string/connection_not_connected"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="10sp" />
-
-                        <!-- Download / Upload / Duration -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:id="@+id/tv_dashboard_download"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:lines="1"
-                                android:text="↓ 0 B"
-                                android:textColor="#00A86B"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tv_dashboard_upload"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:lines="1"
-                                android:text="↑ 0 B"
-                                android:textColor="#F59E0B"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tv_dashboard_duration"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="end"
-                                android:lines="1"
-                                android:text="⏱ 00:00:00"
+                                android:text="@string/connection_not_connected"
                                 android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="10sp"
-                                android:textStyle="bold" />
+                                android:textSize="10sp" />
+
+                            <!-- Download / Upload / Duration -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/tv_dashboard_download"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:lines="1"
+                                    android:text="↓ 0 B"
+                                    android:textColor="#00A86B"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/tv_dashboard_upload"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:gravity="center"
+                                    android:lines="1"
+                                    android:text="↑ 0 B"
+                                    android:textColor="#F59E0B"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/tv_dashboard_duration"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:gravity="end"
+                                    android:lines="1"
+                                    android:text="⏱ 00:00:00"
+                                    android:textColor="?attr/colorOnSurfaceVariant"
+                                    android:textSize="10sp"
+                                    android:textStyle="bold" />
+
+                            </LinearLayout>
 
                         </LinearLayout>
 
-                    </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
                 </LinearLayout>
 
@@ -260,7 +268,7 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom|end"
                     android:layout_marginEnd="18dp"
-                    android:layout_marginBottom="8dp">
+                    android:layout_marginBottom="10dp">
 
                     <com.google.android.material.floatingactionbutton.FloatingActionButton
                         android:id="@+id/fab"
