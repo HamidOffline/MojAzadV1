@@ -1,6 +1,5 @@
 package com.v2ray.ang.ui
 
-import androidx.appcompat.app.AppCompatDelegate
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -20,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.AppCompatEditText
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
@@ -110,6 +110,21 @@ class MainActivity :
 
         private const val HEALTH_COLOR_OFFLINE =
             "#E53935"
+
+        /*
+         * MojAzad Theme
+         */
+        private const val THEME_PREFS =
+            "mojazad_theme_preferences"
+
+        private const val THEME_MODE =
+            "theme_mode"
+
+        private const val THEME_LIGHT =
+            "light"
+
+        private const val THEME_DARK =
+            "dark"
     }
 
     private val binding by lazy {
@@ -133,6 +148,17 @@ class MainActivity :
 
         getSharedPreferences(
             AUTO_FAILOVER_PREFS,
+            MODE_PRIVATE
+        )
+    }
+
+    /*
+     * MojAzad Theme state
+     */
+    private val themePreferences by lazy {
+
+        getSharedPreferences(
+            THEME_PREFS,
             MODE_PRIVATE
         )
     }
@@ -287,6 +313,8 @@ class MainActivity :
             savedInstanceState
         )
 
+        applySavedTheme()
+
         setContentView(
             binding.root
         )
@@ -326,12 +354,6 @@ class MainActivity :
             handleFabAction()
         }
 
-        /*
-         * MojAzad V3:
-         *
-         * Tapping the dashboard only refreshes
-         * current-server Ping + Country/IP.
-         */
         binding.layoutTest.setOnClickListener {
 
             handleLayoutTestClick()
@@ -365,6 +387,88 @@ class MainActivity :
             PermissionType.POST_NOTIFICATIONS
         ) {
         }
+    }
+
+    /*
+     * =========================================================
+     * MojAzad Theme
+     * =========================================================
+     */
+
+    private fun applySavedTheme() {
+
+        when (
+            themePreferences.getString(
+                THEME_MODE,
+                THEME_DARK
+            )
+        ) {
+
+            THEME_LIGHT -> {
+
+                AppCompatDelegate
+                    .setDefaultNightMode(
+                        AppCompatDelegate.MODE_NIGHT_NO
+                    )
+            }
+
+            else -> {
+
+                AppCompatDelegate
+                    .setDefaultNightMode(
+                        AppCompatDelegate.MODE_NIGHT_YES
+                    )
+            }
+        }
+    }
+
+    private fun isDarkThemeEnabled():
+        Boolean {
+
+        return themePreferences
+            .getString(
+                THEME_MODE,
+                THEME_DARK
+            ) ==
+            THEME_DARK
+    }
+
+    private fun toggleTheme() {
+
+        val newMode =
+            if (
+                isDarkThemeEnabled()
+            ) {
+
+                THEME_LIGHT
+
+            } else {
+
+                THEME_DARK
+            }
+
+        themePreferences
+            .edit()
+            .putString(
+                THEME_MODE,
+                newMode
+            )
+            .apply()
+
+        AppCompatDelegate
+            .setDefaultNightMode(
+                if (
+                    newMode ==
+                    THEME_DARK
+                ) {
+
+                    AppCompatDelegate.MODE_NIGHT_YES
+
+                } else {
+
+                    AppCompatDelegate.MODE_NIGHT_NO
+                }
+            )
     }
 
     /*
@@ -1723,16 +1827,6 @@ class MainActivity :
         )
     }
 
-    /*
-     * MojAzad:
-     *
-     * Always display the version of the APK that is
-     * actually installed.
-     *
-     * Examples:
-     * 3.0.2-beta1 -> v3.0.2-beta1
-     * 3.0.2       -> v3.0.2
-     */
     private fun setupNavigationVersion() {
 
         val headerView =
@@ -2148,14 +2242,6 @@ class MainActivity :
         }
     }
 
-    private fun setTestState(
-        content: String?
-    ) {
-
-        binding.tvTestState.text =
-            content
-    }
-
     private fun applyRunningState(
         isLoading: Boolean,
         isRunning: Boolean
@@ -2325,6 +2411,24 @@ class MainActivity :
                 }
         }
 
+        val themeItem =
+            menu.findItem(
+                R.id.theme_toggle
+            )
+
+        themeItem?.setIcon(
+            if (
+                isDarkThemeEnabled()
+            ) {
+
+                R.drawable.ic_light_mode_24
+
+            } else {
+
+                R.drawable.ic_dark_mode_24
+            }
+        )
+
         return super
             .onCreateOptionsMenu(
                 menu
@@ -2337,6 +2441,13 @@ class MainActivity :
         when (
             item.itemId
         ) {
+
+            R.id.theme_toggle -> {
+
+                toggleTheme()
+
+                true
+            }
 
             R.id.import_qrcode -> {
 
