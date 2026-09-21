@@ -16,7 +16,6 @@ import com.v2ray.ang.R
 import com.v2ray.ang.core.CoreServiceManager
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.extension.toSpeedString
-import com.v2ray.ang.ui.MainActivity
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,14 +40,11 @@ object NotificationManager {
     private const val QUERY_INTERVAL_MS = 3000L
 
     /*
-     * MojAzad V3
-     *
-     * Traffic information for the current server session.
-     *
-     * Core traffic counters are reset every time
-     * queryAllOutboundTrafficStats() is called,
-     * therefore MojAzad keeps cumulative totals here.
+     * =========================================================
+     * MojAzad V3 Traffic Dashboard
+     * =========================================================
      */
+
     data class TrafficSnapshot(
         val uploadBytes: Long,
         val downloadBytes: Long,
@@ -70,11 +66,8 @@ object NotificationManager {
         NotificationManager? = null
 
     /*
-     * MojAzad V3 session traffic.
-     *
-     * Proxy traffic is used for the dashboard,
-     * because it represents traffic going through
-     * the selected VPN/proxy server.
+     * Cumulative proxy traffic for the
+     * currently connected MojAzad server.
      */
     @Volatile
     private var sessionProxyUplink =
@@ -96,16 +89,19 @@ object NotificationManager {
     private var trafficUpdatedAt =
         0L
 
+    /*
+     * =========================================================
+     * Traffic collector
+     * =========================================================
+     */
+
     /**
-     * Starts traffic collection and,
-     * when enabled in settings,
-     * updates the speed notification.
-     *
      * MojAzad V3:
-     * Traffic collection now runs even if the user
-     * disabled speed text in the notification,
-     * because the connection dashboard needs
-     * accurate upload/download totals.
+     *
+     * Traffic collection always runs while the Core
+     * is active because MainActivity Dashboard needs
+     * upload/download totals even when notification
+     * speed text is disabled.
      */
     fun startSpeedNotification() {
 
@@ -113,6 +109,7 @@ object NotificationManager {
             speedNotificationJob != null ||
             CoreServiceManager.isRunning() == false
         ) {
+
             return
         }
 
@@ -124,7 +121,9 @@ object NotificationManager {
                 Dispatchers.IO
             ).launch {
 
-                while (isActive) {
+                while (
+                    isActive
+                ) {
 
                     val showSpeedNotification =
                         MmkvManager.decodeSettingsBool(
@@ -133,8 +132,10 @@ object NotificationManager {
 
                     lastZeroSpeed =
                         updateTrafficStatsOnce(
-                            lastZeroSpeed,
-                            showSpeedNotification
+                            lastZeroSpeed =
+                                lastZeroSpeed,
+                            showSpeedNotification =
+                                showSpeedNotification
                         )
 
                     delay(
@@ -144,11 +145,18 @@ object NotificationManager {
             }
     }
 
+    /*
+     * =========================================================
+     * Notification
+     * =========================================================
+     */
+
     /**
-     * Shows the foreground notification.
+     * Shows foreground-service notification.
      *
-     * A new notification means a new VPN server session,
-     * so MojAzad resets dashboard traffic totals here.
+     * A new foreground connection represents
+     * a new MojAzad server session, therefore
+     * dashboard traffic starts again from zero.
      */
     fun showNotification(
         currentConfig: ProfileItem?
@@ -158,20 +166,11 @@ object NotificationManager {
             getService()
                 ?: return
 
-        /*
-         * MojAzad V3:
-         * Every new server connection starts
-         * traffic counters from zero.
-         *
-         * This also makes Auto Failover visible:
-         * when a new server starts, dashboard
-         * traffic starts from zero again.
-         */
         resetSessionTraffic()
 
         /*
-         * Avoid querying stats immediately after
-         * the core starts.
+         * Avoid querying Core immediately
+         * after the connection starts.
          */
         lastQueryTime =
             System.currentTimeMillis()
@@ -180,11 +179,25 @@ object NotificationManager {
             PendingIntent.FLAG_IMMUTABLE or
                 PendingIntent.FLAG_UPDATE_CURRENT
 
+        /*
+         * Avoid MainActivity::class.java.
+         *
+         * Some CI builds previously produced
+         * KClass.java errors, so use Android's
+         * explicit class name instead.
+         */
         val startMainIntent =
-            Intent(
-                service,
-                MainActivity::class.java
-            )
+            Intent().apply {
+
+                setClassName(
+                    service,
+                    "com.v2ray.ang.ui.MainActivity"
+                )
+
+                addFlags(
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+                )
+            }
 
         val contentPendingIntent =
             PendingIntent.getActivity(
@@ -197,15 +210,16 @@ object NotificationManager {
         val stopV2RayIntent =
             Intent(
                 AppConfig.BROADCAST_ACTION_SERVICE
-            )
+            ).apply {
 
-        stopV2RayIntent.`package` =
-            AppConfig.ANG_PACKAGE
+                `package` =
+                    AppConfig.ANG_PACKAGE
 
-        stopV2RayIntent.putExtra(
-            "key",
-            AppConfig.MSG_STATE_STOP
-        )
+                putExtra(
+                    "key",
+                    AppConfig.MSG_STATE_STOP
+                )
+            }
 
         val stopV2RayPendingIntent =
             PendingIntent.getBroadcast(
@@ -218,15 +232,16 @@ object NotificationManager {
         val restartV2RayIntent =
             Intent(
                 AppConfig.BROADCAST_ACTION_SERVICE
-            )
+            ).apply {
 
-        restartV2RayIntent.`package` =
-            AppConfig.ANG_PACKAGE
+                `package` =
+                    AppConfig.ANG_PACKAGE
 
-        restartV2RayIntent.putExtra(
-            "key",
-            AppConfig.MSG_STATE_RESTART
-        )
+                putExtra(
+                    "key",
+                    AppConfig.MSG_STATE_RESTART
+                )
+            }
 
         val restartV2RayPendingIntent =
             PendingIntent.getBroadcast(
@@ -258,7 +273,14 @@ object NotificationManager {
                     R.drawable.ic_stat_name
                 )
                 .setContentTitle(
-                    currentConfig?.remarks
+                    currentConfig
+                        ?.remarks
+                        ?.takeIf {
+                            it.isNotBlank()
+                        }
+                        ?: service.getString(
+                            R.string.app_name
+                        )
                 )
                 .setPriority(
                     NotificationCompat.PRIORITY_MIN
@@ -297,7 +319,7 @@ object NotificationManager {
     }
 
     /**
-     * Cancels notification and stops traffic collector.
+     * Cancels notification and traffic collector.
      */
     fun cancelNotification() {
 
@@ -331,12 +353,8 @@ object NotificationManager {
     /**
      * Stops periodic querying.
      *
-     * Totals are intentionally NOT reset.
-     *
-     * For example, when screen turns off,
-     * traffic generated while the screen is off
-     * will still be returned by Core the next time
-     * querying resumes.
+     * Cumulative totals are intentionally
+     * NOT reset here.
      */
     fun stopSpeedNotification() {
 
@@ -361,24 +379,26 @@ object NotificationManager {
                 ) {
 
                     updateNotification(
-                        "",
-                        0,
-                        0
+                        contentText = "",
+                        proxyTraffic = 0L,
+                        directTraffic = 0L
                     )
                 }
             }
     }
 
+    /*
+     * =========================================================
+     * MojAzad Dashboard API
+     * =========================================================
+     */
+
     /**
-     * MojAzad V3
+     * Returns cached session traffic without
+     * querying Core again.
      *
-     * Returns current VPN-server traffic totals
-     * without querying Core again.
-     *
-     * This is important:
-     * MainActivity must never call Core traffic query
-     * directly because doing so would reset the counters
-     * used by the notification collector.
+     * This is important because Core traffic
+     * counters are reset by the traffic query.
      */
     fun getTrafficSnapshot():
         TrafficSnapshot {
@@ -386,25 +406,20 @@ object NotificationManager {
         return TrafficSnapshot(
             uploadBytes =
                 sessionProxyUplink,
-
             downloadBytes =
                 sessionProxyDownlink,
-
             uploadSpeedBytesPerSecond =
                 currentProxyUplinkSpeed,
-
             downloadSpeedBytesPerSecond =
                 currentProxyDownlinkSpeed,
-
             updatedAt =
                 trafficUpdatedAt
         )
     }
 
     /**
-     * MojAzad V3
-     *
-     * Resets counters for a new server connection.
+     * Resets Dashboard traffic for
+     * the new server session.
      */
     private fun resetSessionTraffic() {
 
@@ -424,9 +439,12 @@ object NotificationManager {
             System.currentTimeMillis()
     }
 
-    /**
-     * Creates notification channel.
+    /*
+     * =========================================================
+     * Android Notification Channel
+     * =========================================================
      */
+
     @RequiresApi(
         Build.VERSION_CODES.O
     )
@@ -439,33 +457,33 @@ object NotificationManager {
         val channelName =
             AppConfig.RAY_NG_CHANNEL_NAME
 
-        val chan =
+        val channel =
             NotificationChannel(
                 channelId,
                 channelName,
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_LOW
             )
 
-        chan.lightColor =
+        channel.lightColor =
             Color.DKGRAY
 
-        chan.importance =
-            NotificationManager.IMPORTANCE_NONE
-
-        chan.lockscreenVisibility =
+        channel.lockscreenVisibility =
             Notification.VISIBILITY_PRIVATE
 
         getNotificationManager()
             ?.createNotificationChannel(
-                chan
+                channel
             )
 
         return channelId
     }
 
-    /**
-     * Updates notification with traffic speed.
+    /*
+     * =========================================================
+     * Notification updates
+     * =========================================================
      */
+
     private fun updateNotification(
         contentText: String?,
         proxyTraffic: Long,
@@ -473,49 +491,57 @@ object NotificationManager {
     ) {
 
         if (
-            mBuilder == null
+            mBuilder ==
+            null
         ) {
+
             return
         }
 
-        if (
+        when {
+
             proxyTraffic <
                 NOTIFICATION_ICON_THRESHOLD &&
-            directTraffic <
-                NOTIFICATION_ICON_THRESHOLD
-        ) {
+                directTraffic <
+                NOTIFICATION_ICON_THRESHOLD -> {
 
-            mBuilder?.setSmallIcon(
-                R.drawable.ic_stat_name
-            )
+                mBuilder
+                    ?.setSmallIcon(
+                        R.drawable.ic_stat_name
+                    )
+            }
 
-        } else if (
             proxyTraffic >
-            directTraffic
-        ) {
+                directTraffic -> {
 
-            mBuilder?.setSmallIcon(
-                R.drawable.ic_stat_proxy
-            )
+                mBuilder
+                    ?.setSmallIcon(
+                        R.drawable.ic_stat_proxy
+                    )
+            }
 
-        } else {
+            else -> {
 
-            mBuilder?.setSmallIcon(
-                R.drawable.ic_stat_direct
-            )
+                mBuilder
+                    ?.setSmallIcon(
+                        R.drawable.ic_stat_direct
+                    )
+            }
         }
 
-        mBuilder?.setStyle(
-            NotificationCompat
-                .BigTextStyle()
-                .bigText(
-                    contentText
-                )
-        )
+        mBuilder
+            ?.setStyle(
+                NotificationCompat
+                    .BigTextStyle()
+                    .bigText(
+                        contentText
+                    )
+            )
 
-        mBuilder?.setContentText(
-            contentText
-        )
+        mBuilder
+            ?.setContentText(
+                contentText
+            )
 
         getNotificationManager()
             ?.notify(
@@ -524,9 +550,6 @@ object NotificationManager {
             )
     }
 
-    /**
-     * Gets Android notification manager.
-     */
     private fun getNotificationManager():
         NotificationManager? {
 
@@ -548,9 +571,12 @@ object NotificationManager {
         return mNotificationManager
     }
 
-    /**
-     * Formats speed text for notification.
+    /*
+     * =========================================================
+     * Speed formatting
+     * =========================================================
      */
+
     private fun appendSpeedString(
         text: StringBuilder,
         name: String?,
@@ -558,24 +584,25 @@ object NotificationManager {
         down: Double
     ) {
 
-        var n =
-            name ?: "no tag"
+        var displayName =
+            name
+                ?: "no tag"
 
-        n =
-            n.take(
+        displayName =
+            displayName.take(
                 min(
-                    n.length,
+                    displayName.length,
                     6
                 )
             )
 
         text.append(
-            n
+            displayName
         )
 
         for (
             i in
-            n.length..6 step 2
+            displayName.length..6 step 2
         ) {
 
             text.append(
@@ -588,13 +615,20 @@ object NotificationManager {
         )
     }
 
+    /*
+     * =========================================================
+     * MojAzad V3 Traffic Collection
+     * =========================================================
+     */
+
     /**
-     * MojAzad V3 traffic collector.
+     * Queries Core only once per interval.
      *
-     * Queries Core once, then:
-     * - keeps cumulative VPN traffic totals
-     * - keeps current upload/download speed
-     * - optionally updates notification
+     * The Core query returns and resets
+     * outbound counters.
+     *
+     * Therefore each returned value is added
+     * to MojAzad session totals.
      */
     private fun updateTrafficStatsOnce(
         lastZeroSpeed: Boolean,
@@ -608,9 +642,6 @@ object NotificationManager {
             queryTime -
                 lastQueryTime
 
-        /*
-         * Prevent excessive Core queries.
-         */
         if (
             sinceLastQueryIn <
             QUERY_INTERVAL_MS
@@ -621,7 +652,203 @@ object NotificationManager {
                 "Query interval too short: ${sinceLastQueryIn}ms, skipping"
             )
 
-            lastQueryTime =
-                queryTime
+            return lastZeroSpeed
+        }
 
-           
+        val sinceLastQueryInSeconds =
+            sinceLastQueryIn /
+                1000.0
+
+        var proxyUplink =
+            0L
+
+        var proxyDownlink =
+            0L
+
+        var directUplink =
+            0L
+
+        var directDownlink =
+            0L
+
+        CoreServiceManager
+            .queryAllOutboundTrafficStats()
+            .forEach { stat ->
+
+                when {
+
+                    stat.tag ==
+                        AppConfig.TAG_DIRECT -> {
+
+                        when (
+                            stat.direction
+                        ) {
+
+                            AppConfig.UPLINK -> {
+
+                                directUplink +=
+                                    stat.value
+                            }
+
+                            AppConfig.DOWNLINK -> {
+
+                                directDownlink +=
+                                    stat.value
+                            }
+                        }
+                    }
+
+                    stat.tag !=
+                        AppConfig.TAG_BLOCKED -> {
+
+                        when (
+                            stat.direction
+                        ) {
+
+                            AppConfig.UPLINK -> {
+
+                                proxyUplink +=
+                                    stat.value
+                            }
+
+                            AppConfig.DOWNLINK -> {
+
+                                proxyDownlink +=
+                                    stat.value
+                            }
+                        }
+                    }
+                }
+            }
+
+        /*
+         * Accumulate server-session totals.
+         */
+        sessionProxyUplink +=
+            proxyUplink
+
+        sessionProxyDownlink +=
+            proxyDownlink
+
+        /*
+         * Current transfer speed.
+         */
+        if (
+            sinceLastQueryInSeconds >
+            0.0
+        ) {
+
+            currentProxyUplinkSpeed =
+                (
+                    proxyUplink /
+                        sinceLastQueryInSeconds
+                    )
+                    .toLong()
+
+            currentProxyDownlinkSpeed =
+                (
+                    proxyDownlink /
+                        sinceLastQueryInSeconds
+                    )
+                    .toLong()
+
+        } else {
+
+            currentProxyUplinkSpeed =
+                0L
+
+            currentProxyDownlinkSpeed =
+                0L
+        }
+
+        trafficUpdatedAt =
+            queryTime
+
+        val proxyTotal =
+            proxyUplink +
+                proxyDownlink
+
+        val directTotal =
+            directUplink +
+                directDownlink
+
+        val zeroSpeed =
+            proxyTotal +
+                directTotal ==
+                0L
+
+        /*
+         * Speed notification is optional.
+         *
+         * Dashboard traffic collection is
+         * independent from this setting.
+         */
+        if (
+            showSpeedNotification &&
+            (
+                !zeroSpeed ||
+                    !lastZeroSpeed
+                )
+        ) {
+
+            val text =
+                StringBuilder()
+
+            appendSpeedString(
+                text = text,
+                name =
+                    AppConfig.TAG_PROXY,
+                up =
+                    proxyUplink /
+                        sinceLastQueryInSeconds,
+                down =
+                    proxyDownlink /
+                        sinceLastQueryInSeconds
+            )
+
+            appendSpeedString(
+                text = text,
+                name =
+                    AppConfig.TAG_DIRECT,
+                up =
+                    directUplink /
+                        sinceLastQueryInSeconds,
+                down =
+                    directDownlink /
+                        sinceLastQueryInSeconds
+            )
+
+            updateNotification(
+                contentText =
+                    text.toString(),
+                proxyTraffic =
+                    proxyTotal,
+                directTraffic =
+                    directTotal
+            )
+        }
+
+        lastQueryTime =
+            queryTime
+
+        return zeroSpeed
+    }
+
+    /*
+     * =========================================================
+     * Core Service
+     * =========================================================
+     */
+
+    /**
+     * Returns currently active v2rayNG Service.
+     */
+    private fun getService():
+        Service? {
+
+        return CoreServiceManager
+            .serviceControl
+            ?.get()
+            ?.getService()
+    }
+}
