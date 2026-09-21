@@ -5,11 +5,11 @@
     tools:showIn="navigation_view">
 
     <!-- =============================================== -->
-    <!-- MojAzad V2 - Connection & Network              -->
+    <!-- MojAzad - Connection                           -->
     <!-- =============================================== -->
 
     <group
-        android:id="@+id/group_main"
+        android:id="@+id/group_connection"
         android:checkableBehavior="none">
 
         <item
@@ -30,23 +30,34 @@
             android:orderInCategory="30"
             android:title="@string/routing_settings_title" />
 
+    </group>
+
+
+    <!-- =============================================== -->
+    <!-- MojAzad - Configuration                        -->
+    <!-- =============================================== -->
+
+    <group
+        android:id="@+id/group_configuration"
+        android:checkableBehavior="none">
+
         <item
             android:id="@+id/user_asset_setting"
             android:icon="@drawable/ic_file_24dp"
-            android:orderInCategory="40"
+            android:orderInCategory="50"
             android:title="@string/title_user_asset_setting" />
 
         <item
             android:id="@+id/settings"
             android:icon="@drawable/ic_settings_24dp"
-            android:orderInCategory="50"
+            android:orderInCategory="60"
             android:title="@string/title_settings" />
 
     </group>
 
 
     <!-- =============================================== -->
-    <!-- MojAzad V2 - Tools                             -->
+    <!-- MojAzad - Tools                                -->
     <!-- =============================================== -->
 
     <group
@@ -75,11 +86,11 @@
 
 
     <!-- =============================================== -->
-    <!-- MojAzad V2 - About                            -->
+    <!-- MojAzad - Information                          -->
     <!-- =============================================== -->
 
     <group
-        android:id="@+id/group_id2"
+        android:id="@+id/group_information"
         android:checkableBehavior="none">
 
         <item
@@ -89,9 +100,9 @@
             android:title="@string/title_about" />
 
         <!--
-            Old upstream promotion item.
-            Keep the ID so existing Kotlin code remains compatible,
-            but hide it from MojAzad.
+            Upstream promotion item.
+            Kept for compatibility with existing Kotlin code,
+            but hidden in MojAzad.
         -->
         <item
             android:id="@+id/promotion"
@@ -100,7 +111,9 @@
             android:title="@string/title_pref_promotion"
             android:visible="false" />
 
-        <!-- Placeholder used by existing app code for version text -->
+        <!--
+            Existing placeholder used by app code.
+        -->
         <item
             android:id="@+id/placeholder"
             android:enabled="false"
