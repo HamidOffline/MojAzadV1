@@ -17,69 +17,218 @@ import kotlinx.coroutines.withContext
 import java.net.URLDecoder
 
 class UrlSchemeActivity : BaseActivity() {
-    private val binding by lazy { ActivityLogcatBinding.inflate(layoutInflater) }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(binding.root)
+    private val binding by lazy {
+        ActivityLogcatBinding.inflate(
+            layoutInflater
+        )
+    }
+
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
+
+        super.onCreate(
+            savedInstanceState
+        )
+
+        setContentView(
+            binding.root
+        )
 
         try {
+
             intent.apply {
-                if (action == Intent.ACTION_SEND) {
-                    if ("text/plain" == type) {
-                        intent.getStringExtra(Intent.EXTRA_TEXT)?.let {
-                            parseUri(it, null)
-                        }
+
+                if (
+                    action == Intent.ACTION_SEND
+                ) {
+
+                    if (
+                        type == "text/plain"
+                    ) {
+
+                        getStringExtra(
+                            Intent.EXTRA_TEXT
+                        )
+                            ?.let {
+
+                                parseUri(
+                                    it,
+                                    null
+                                )
+                            }
                     }
-                } else if (action == Intent.ACTION_VIEW) {
-                    when (data?.host) {
+
+                } else if (
+                    action == Intent.ACTION_VIEW
+                ) {
+
+                    when (
+                        data?.host
+                    ) {
+
                         "install-config" -> {
-                            val uri: Uri? = intent.data
-                            val shareUrl = uri?.getQueryParameter("url").orEmpty()
-                            parseUri(shareUrl, uri?.fragment)
+
+                            val uri:
+                                Uri? =
+                                data
+
+                            val shareUrl =
+                                uri
+                                    ?.getQueryParameter(
+                                        "url"
+                                    )
+                                    .orEmpty()
+
+                            parseUri(
+                                shareUrl,
+                                uri?.fragment
+                            )
                         }
 
                         "install-sub" -> {
-                            val uri: Uri? = intent.data
-                            val shareUrl = uri?.getQueryParameter("url").orEmpty()
-                            parseUri(shareUrl, uri?.fragment)
+
+                            val uri:
+                                Uri? =
+                                data
+
+                            val shareUrl =
+                                uri
+                                    ?.getQueryParameter(
+                                        "url"
+                                    )
+                                    .orEmpty()
+
+                            parseUri(
+                                shareUrl,
+                                uri?.fragment
+                            )
                         }
 
                         else -> {
-                            toastError(R.string.toast_failure)
+
+                            toastError(
+                                R.string.toast_failure
+                            )
                         }
                     }
                 }
             }
 
-            startActivity(Intent(this, MainActivity::class.java))
+            /*
+             * MojAzad V3
+             *
+             * Avoid MainActivity::class.java here.
+             * Using setClassName prevents the Kotlin
+             * KClass.java compilation error seen in CI.
+             */
+            val mainIntent =
+                Intent().apply {
+
+                    setClassName(
+                        applicationContext,
+                        "com.v2ray.ang.ui.MainActivity"
+                    )
+
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    )
+                }
+
+            startActivity(
+                mainIntent
+            )
+
             finish()
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Error processing URL scheme", e)
+
+        } catch (
+            e: Exception
+        ) {
+
+            LogUtil.e(
+                AppConfig.TAG,
+                "Error processing URL scheme",
+                e
+            )
         }
     }
 
-    private fun parseUri(uriString: String?, fragment: String?) {
-        if (uriString.isNullOrEmpty()) {
+    private fun parseUri(
+        uriString: String?,
+        fragment: String?
+    ) {
+
+        if (
+            uriString.isNullOrEmpty()
+        ) {
+
             return
         }
-        LogUtil.i(AppConfig.TAG, uriString)
 
-        var decodedUrl = URLDecoder.decode(uriString, "UTF-8")
-        val uri = Uri.parse(decodedUrl)
-        if (uri != null) {
-            if (uri.fragment.isNullOrEmpty() && !fragment.isNullOrEmpty()) {
-                decodedUrl += "#${fragment}"
-            }
-            LogUtil.i(AppConfig.TAG, decodedUrl)
-            lifecycleScope.launch(Dispatchers.IO) {
-                val (count, countSub) = AngConfigManager.importBatchConfig(decodedUrl, "", false)
-                withContext(Dispatchers.Main) {
-                    if (count + countSub > 0) {
-                        toast(R.string.import_subscription_success)
-                    } else {
-                        toast(R.string.import_subscription_failure)
-                    }
+        LogUtil.i(
+            AppConfig.TAG,
+            uriString
+        )
+
+        var decodedUrl =
+            URLDecoder.decode(
+                uriString,
+                "UTF-8"
+            )
+
+        val uri =
+            Uri.parse(
+                decodedUrl
+            )
+
+        if (
+            uri.fragment.isNullOrEmpty() &&
+            !fragment.isNullOrEmpty()
+        ) {
+
+            decodedUrl +=
+                "#$fragment"
+        }
+
+        LogUtil.i(
+            AppConfig.TAG,
+            decodedUrl
+        )
+
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
+
+            val (
+                count,
+                countSub
+            ) =
+                AngConfigManager
+                    .importBatchConfig(
+                        decodedUrl,
+                        "",
+                        false
+                    )
+
+            withContext(
+                Dispatchers.Main
+            ) {
+
+                if (
+                    count + countSub >
+                    0
+                ) {
+
+                    toast(
+                        R.string.import_subscription_success
+                    )
+
+                } else {
+
+                    toast(
+                        R.string.import_subscription_failure
+                    )
                 }
             }
         }
