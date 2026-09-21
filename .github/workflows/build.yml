@@ -10,13 +10,8 @@ on:
         default: test
         options:
           - test
-          - publish
-
-      confirm_stable_release:
-        description: 'فقط برای انتشار Stable فعال شود'
-        required: false
-        type: boolean
-        default: false
+          - prerelease
+          - release
 
 permissions:
   contents: write
@@ -107,44 +102,156 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Read MojAzad version
-        run: |
-          VERSION_NAME="$(grep -m1 'versionName = ' \
-            "${{ github.workspace }}/V2rayNG/app/build.gradle.kts" \
-            | sed -E 's/.*"([^"]+)".*/\1/')"
+      # =========================================================
+      # AUTO VERSION
+      # =========================================================
 
-          if [ -z "$VERSION_NAME" ]; then
-            echo "ERROR: versionName could not be detected."
+      - name: Calculate MojAzad version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -e
+
+          BUILD_FILE="${{ github.workspace }}/V2rayNG/app/build.gradle.kts"
+
+          BASE_VERSION="$(grep -m1 'versionName = ' "$BUILD_FILE" \
+            | sed -E 's/.*"([^"]+)".*/\1/' \
+            | sed -E 's/-(beta|alpha|rc)[0-9]+$//')"
+
+          if [ -z "$BASE_VERSION" ]; then
+            echo "ERROR: Base version could not be detected."
             exit 1
           fi
 
-          case "$VERSION_NAME" in
-            *-beta*|*-alpha*|*-rc*)
-              IS_PRERELEASE="true"
-              ;;
-            *)
-              IS_PRERELEASE="false"
-              ;;
-          esac
+          IFS='.' read -r BASE_MAJOR BASE_MINOR BASE_PATCH <<EOF
+          $BASE_VERSION
+          EOF
+
+          if [ -z "$BASE_MAJOR" ] || [ -z "$BASE_MINOR" ] || [ -z "$BASE_PATCH" ]; then
+            echo "ERROR: Invalid base version: $BASE_VERSION"
+            exit 1
+          fi
+
+          echo "Base project version: $BASE_VERSION"
+
+          RELEASE_TAGS="$(gh release list \
+            --limit 100 \
+            --json tagName \
+            --jq '.[].tagName' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-beta[0-9]+)?$' \
+            || true)"
+
+          STABLE_TAGS="$(printf '%s\n' "$RELEASE_TAGS" \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            || true)"
+
+          if [ -n "$STABLE_TAGS" ]; then
+            LATEST_STABLE="$(printf '%s\n' "$STABLE_TAGS" \
+              | sed 's/^v//' \
+              | sort -V \
+              | tail -n 1)"
+          else
+            LATEST_STABLE="$BASE_VERSION"
+          fi
+
+          IFS='.' read -r STABLE_MAJOR STABLE_MINOR STABLE_PATCH <<EOF
+          $LATEST_STABLE
+          EOF
+
+          NEXT_PATCH=$((STABLE_PATCH + 1))
+          NEXT_BASE="${STABLE_MAJOR}.${STABLE_MINOR}.${NEXT_PATCH}"
+
+          if [ "$MODE" = "test" ]; then
+            VERSION_NAME="${BASE_VERSION}-test"
+            RELEASE_TAG=""
+            IS_PRERELEASE="false"
+
+          elif [ "$MODE" = "prerelease" ]; then
+
+            BETA_NUMBERS="$(printf '%s\n' "$RELEASE_TAGS" \
+              | grep -E "^v${NEXT_BASE}-beta[0-9]+$" \
+              | sed -E 's/.*-beta([0-9]+)$/\1/' \
+              || true)"
+
+            if [ -n "$BETA_NUMBERS" ]; then
+              LAST_BETA="$(printf '%s\n' "$BETA_NUMBERS" \
+                | sort -n \
+                | tail -n 1)"
+              NEXT_BETA=$((LAST_BETA + 1))
+            else
+              NEXT_BETA=1
+            fi
+
+            VERSION_NAME="${NEXT_BASE}-beta${NEXT_BETA}"
+            RELEASE_TAG="v${VERSION_NAME}"
+            IS_PRERELEASE="true"
+
+          elif [ "$MODE" = "release" ]; then
+
+            VERSION_NAME="$NEXT_BASE"
+            RELEASE_TAG="v${VERSION_NAME}"
+            IS_PRERELEASE="false"
+
+          else
+            echo "ERROR: Unknown mode: $MODE"
+            exit 1
+          fi
 
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=v$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
           echo "IS_PRERELEASE=$IS_PRERELEASE" >> "$GITHUB_ENV"
 
-          echo "Mode: ${{ inputs.mode }}"
-          echo "Version: $VERSION_NAME"
-          echo "Pre-release: $IS_PRERELEASE"
+          echo "Mode: $MODE"
+          echo "Version name: $VERSION_NAME"
+          echo "Release tag: $RELEASE_TAG"
 
-      - name: Protect stable publish
-        if: inputs.mode == 'publish' && env.IS_PRERELEASE == 'false'
+      - name: Calculate versionCode
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ inputs.confirm_stable_release }}" != "true" ]; then
-            echo "ERROR: Stable release requires explicit confirmation."
-            echo "Run again and enable confirm_stable_release."
+          set -e
+
+          BUILD_FILE="${{ github.workspace }}/V2rayNG/app/build.gradle.kts"
+
+          CURRENT_VERSION_CODE="$(grep -m1 'versionCode = ' "$BUILD_FILE" \
+            | sed -E 's/[^0-9]*([0-9]+).*/\1/')"
+
+          if [ -z "$CURRENT_VERSION_CODE" ]; then
+            echo "ERROR: versionCode could not be detected."
             exit 1
           fi
 
-          echo "Stable release explicitly confirmed."
+          RELEASE_COUNT="$(gh release list \
+            --limit 1000 \
+            --json tagName \
+            --jq '[.[] | select(.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-beta[0-9]+)?$"))] | length')"
+
+          AUTO_VERSION_CODE=$((CURRENT_VERSION_CODE + RELEASE_COUNT + 1))
+
+          echo "VERSION_CODE=$AUTO_VERSION_CODE" >> "$GITHUB_ENV"
+
+          echo "Current source versionCode: $CURRENT_VERSION_CODE"
+          echo "Published MojAzad releases: $RELEASE_COUNT"
+          echo "Build versionCode: $AUTO_VERSION_CODE"
+
+      - name: Apply calculated version
+        run: |
+          set -e
+
+          BUILD_FILE="${{ github.workspace }}/V2rayNG/app/build.gradle.kts"
+
+          sed -i -E \
+            "0,/versionName = \".*\"/s//versionName = \"${VERSION_NAME}\"/" \
+            "$BUILD_FILE"
+
+          sed -i -E \
+            "0,/versionCode = [0-9]+/s//versionCode = ${VERSION_CODE}/" \
+            "$BUILD_FILE"
+
+          echo "Applied version:"
+          grep -m1 'versionName = ' "$BUILD_FILE"
+          grep -m1 'versionCode = ' "$BUILD_FILE"
 
       # =========================================================
       # TEST MODE
@@ -191,17 +298,17 @@ jobs:
         if: inputs.mode == 'test'
         uses: actions/upload-artifact@v7
         with:
-          name: MojAzad-${{ env.VERSION_NAME }}-ARM64-Debug-Only
+          name: MojAzad-${{ env.VERSION_NAME }}-ARM64-Debug
           path: ${{ github.workspace }}/mojazad-arm64-debug/*.apk
           if-no-files-found: error
           retention-days: 7
 
       # =========================================================
-      # PUBLISH MODE
+      # RELEASE / PRERELEASE
       # =========================================================
 
       - name: Restore MojAzad release keystore
-        if: inputs.mode == 'publish'
+        if: inputs.mode != 'test'
         env:
           MOJAZAD_KEYSTORE_BASE64: ${{ secrets.MOJAZAD_KEYSTORE_BASE64 }}
         run: |
@@ -224,8 +331,18 @@ jobs:
           echo "MOJAZAD_KEYSTORE_PATH=${{ github.workspace }}/keystore/mojazad-release.jks" \
             >> "$GITHUB_ENV"
 
-      - name: Build Full Release
-        if: inputs.mode == 'publish'
+      - name: Verify release tag does not already exist
+        if: inputs.mode != 'test'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "ERROR: GitHub Release ${RELEASE_TAG} already exists."
+            exit 1
+          fi
+
+      - name: Build signed Full Release
+        if: inputs.mode != 'test'
         env:
           MOJAZAD_KEYSTORE_PASSWORD: ${{ secrets.MOJAZAD_KEYSTORE_PASSWORD }}
           MOJAZAD_KEY_ALIAS: ${{ secrets.MOJAZAD_KEY_ALIAS }}
@@ -240,7 +357,7 @@ jobs:
           ./gradlew assemblePlaystoreRelease
 
       - name: Collect Release APKs
-        if: inputs.mode == 'publish'
+        if: inputs.mode != 'test'
         run: |
           RELEASE_DIR="${{ github.workspace }}/mojazad-release"
 
@@ -265,7 +382,7 @@ jobs:
           fi
 
       - name: Generate SHA256 checksums
-        if: inputs.mode == 'publish'
+        if: inputs.mode != 'test'
         run: |
           cd "${{ github.workspace }}/mojazad-release"
 
@@ -275,18 +392,8 @@ jobs:
 
           cat SHA256SUMS.txt
 
-      - name: Verify release does not already exist
-        if: inputs.mode == 'publish'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "ERROR: GitHub Release ${RELEASE_TAG} already exists."
-            exit 1
-          fi
-
       - name: Publish GitHub Pre-release
-        if: inputs.mode == 'publish' && env.IS_PRERELEASE == 'true'
+        if: inputs.mode == 'prerelease'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -299,7 +406,7 @@ jobs:
             --prerelease
 
       - name: Publish GitHub Stable Release
-        if: inputs.mode == 'publish' && env.IS_PRERELEASE == 'false'
+        if: inputs.mode == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -311,7 +418,7 @@ jobs:
             --generate-notes
 
       - name: Upload Full Release Artifact
-        if: inputs.mode == 'publish'
+        if: inputs.mode != 'test'
         uses: actions/upload-artifact@v7
         with:
           name: MojAzad-${{ env.VERSION_NAME }}-Release
