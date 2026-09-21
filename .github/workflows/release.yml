@@ -72,4 +72,221 @@ jobs:
 
           echo "AndroidLibXrayLite tag: $CURRENT_TAG"
 
-          echo "CURRENT_TAG=$CURRENT_TAG" >>
+          echo "CURRENT_TAG=$CURRENT_TAG" >> "$GITHUB_ENV"
+
+      - name: Download libv2ray
+        uses: robinraju/release-downloader@v1.13
+        with:
+          repository: '2dust/AndroidLibXrayLite'
+          tag: ${{ env.CURRENT_TAG }}
+          fileName: 'libv2ray.aar'
+          out-file-path: V2rayNG/app/libs/
+
+      - name: Setup Java
+        uses: actions/setup-java@v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Restore MojAzad signing key
+        env:
+          MOJAZAD_KEYSTORE_BASE64: ${{ secrets.MOJAZAD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$MOJAZAD_KEYSTORE_BASE64" ]; then
+            echo "ERROR: MOJAZAD_KEYSTORE_BASE64 is missing."
+            exit 1
+          fi
+
+          printf '%s' "$MOJAZAD_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > "${{ runner.temp }}/mojazad-release.jks"
+
+          test -s "${{ runner.temp }}/mojazad-release.jks"
+
+          echo "Keystore restored successfully."
+
+      - name: Build signed MojAzad Playstore APKs
+        env:
+          MOJAZAD_KEYSTORE_PATH: ${{ runner.temp }}/mojazad-release.jks
+          MOJAZAD_KEYSTORE_PASSWORD: ${{ secrets.MOJAZAD_KEYSTORE_PASSWORD }}
+          MOJAZAD_KEY_ALIAS: ${{ secrets.MOJAZAD_KEY_ALIAS }}
+          MOJAZAD_KEY_PASSWORD: ${{ secrets.MOJAZAD_KEY_PASSWORD }}
+        run: |
+          cd "${{ github.workspace }}/V2rayNG"
+
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+
+          chmod 755 gradlew
+
+          ./gradlew assemblePlaystoreRelease \
+            -Pandroid.injected.signing.store.file="$MOJAZAD_KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$MOJAZAD_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$MOJAZAD_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$MOJAZAD_KEY_PASSWORD"
+
+      - name: Collect APK files
+        run: |
+          RELEASE_DIR="${{ github.workspace }}/mojazad-release"
+          APK_DIR="${{ github.workspace }}/V2rayNG/app/build/outputs/apk/playstore/release"
+
+          mkdir -p "$RELEASE_DIR"
+
+          find "$APK_DIR" \
+            -type f \
+            -name "MojAzad_*.apk" \
+            -exec cp {} "$RELEASE_DIR/" \;
+
+          echo "Generated APK files:"
+          ls -lh "$RELEASE_DIR"
+
+          APK_COUNT="$(find "$RELEASE_DIR" -type f -name '*.apk' | wc -l)"
+
+          echo "APK count: $APK_COUNT"
+
+          if [ "$APK_COUNT" -ne 5 ]; then
+            echo "ERROR: Expected exactly 5 APK files."
+            exit 1
+          fi
+
+      - name: Verify APK signatures
+        run: |
+          APKSIGNER="$ANDROID_HOME/build-tools/37.0.0/apksigner"
+
+          for APK in "${{ github.workspace }}/mojazad-release/"*.apk; do
+            echo ""
+            echo "Checking:"
+            echo "$APK"
+
+            "$APKSIGNER" verify \
+              --verbose \
+              --print-certs \
+              "$APK"
+          done
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd "${{ github.workspace }}/mojazad-release"
+
+          sha256sum *.apk \
+            | sort \
+            > SHA256SUMS.txt
+
+          cat SHA256SUMS.txt
+
+      - name: Detect MojAzad version
+        run: |
+          VERSION_NAME="$(sed -n \
+            's/^[[:space:]]*versionName = "\(.*\)"/\1/p' \
+            "${{ github.workspace }}/V2rayNG/app/build.gradle.kts" \
+            | head -n 1)"
+
+          if [ -z "$VERSION_NAME" ]; then
+            echo "ERROR: Could not detect versionName."
+            exit 1
+          fi
+
+          if [ "$VERSION_NAME" != "3.0.0" ]; then
+            echo "ERROR: Expected versionName 3.0.0 but found $VERSION_NAME."
+            exit 1
+          fi
+
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=MojAzad.V3" >> "$GITHUB_ENV"
+          echo "RELEASE_TITLE=MojAzad.V3" >> "$GITHUB_ENV"
+
+          echo "Android version: $VERSION_NAME"
+          echo "Release tag: MojAzad.V3"
+          echo "Release title: MojAzad.V3"
+
+      - name: Create release notes
+        run: |
+          cat > "${{ github.workspace }}/release-notes.md" << EOF
+          # MojAzad.V3
+
+          نسخه سوم رسمی موج آزاد برای Android.
+
+          **Android Version:** ${VERSION_NAME}
+
+          ### تغییرات MojAzad V3
+
+          - پشتیبانی از چند Subscription
+          - افزودن Subscription از Clipboard
+          - انتخاب خودکار بهترین سرور پس از Real Ping
+          - اتصال خودکار به بهترین سرور
+          - نمایش دو ستونه سرورها به صورت پیش‌فرض
+          - نمایش وضعیت سلامت سرورها
+          - وضعیت‌های Excellent / Good / Weak / Offline
+          - اضافه شدن Auto Failover
+          - جابه‌جایی خودکار به سرور سالم‌تر در صورت بروز مشکل
+          - اضافه شدن Dashboard اتصال
+          - نمایش نام سرور فعال
+          - نمایش Country / IP
+          - نمایش Ping اتصال
+          - نمایش Health اتصال
+          - نمایش Download
+          - نمایش Upload
+          - نمایش مدت زمان اتصال
+          - بهبود Traffic Statistics
+          - بهبود پایداری Dashboard
+          - اضافه شدن In-App Update از GitHub
+          - بهبود رابط کاربری و تجربه اتصال
+          - رفع باگ‌ها و بهبود پایداری
+
+          ### فایل‌های دانلود
+
+          - ARM64 / arm64-v8a
+          - ARM 32-bit / armeabi-v7a
+          - x86
+          - x86_64
+          - Universal
+
+          اگر معماری دستگاه خود را نمی‌دانید، نسخه Universal را دانلود کنید.
+
+          Telegram: @MojAzadNet
+
+          Support: @FreeWaveSup
+
+          Bot: @FreeWaveNetBot
+          EOF
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "${{ github.workspace }}"
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+
+            echo "Release $RELEASE_TAG already exists."
+
+            gh release upload \
+              "$RELEASE_TAG" \
+              mojazad-release/*.apk \
+              mojazad-release/SHA256SUMS.txt \
+              --clobber
+
+            gh release edit \
+              "$RELEASE_TAG" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.md
+
+          else
+
+            gh release create \
+              "$RELEASE_TAG" \
+              mojazad-release/*.apk \
+              mojazad-release/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.md
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: MojAzad-V3-${{ env.VERSION_NAME }}-Release
+          path: |
+            ${{ github.workspace }}/mojazad-release/*.apk
+            ${{ github.workspace }}/mojazad-release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 7
