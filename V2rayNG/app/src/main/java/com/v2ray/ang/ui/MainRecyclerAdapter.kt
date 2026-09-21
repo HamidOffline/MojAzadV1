@@ -1,6 +1,7 @@
 package com.v2ray.ang.ui
 
 import android.annotation.SuppressLint
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
@@ -27,203 +28,631 @@ class MainRecyclerAdapter(
     private val mainViewModel: MainViewModel,
     private val adapterListener: MainAdapterListener?
 ) : RecyclerView.Adapter<MainRecyclerAdapter.BaseViewHolder>(), ItemTouchHelperAdapter {
+
     companion object {
         private const val VIEW_TYPE_ITEM = 1
         private const val VIEW_TYPE_FOOTER = 2
+
+        /*
+         * MojAzad V3 Server Health thresholds.
+         *
+         * 1 - 200 ms   = Excellent
+         * 201 - 400 ms = Good
+         * 401+ ms      = Weak
+         * Negative     = Offline / Failed
+         * 0 / no test  = Hidden
+         */
+        private const val HEALTH_EXCELLENT_MAX = 200L
+        private const val HEALTH_GOOD_MAX = 400L
+
+        private const val HEALTH_COLOR_EXCELLENT = "#00A86B"
+        private const val HEALTH_COLOR_GOOD = "#0878E8"
+        private const val HEALTH_COLOR_WEAK = "#F59E0B"
+        private const val HEALTH_COLOR_OFFLINE = "#E53935"
     }
 
-    private val doubleColumnDisplay = MmkvManager.decodeSettingsBool(AppConfig.PREF_DOUBLE_COLUMN_DISPLAY, false)
+    private val doubleColumnDisplay =
+        MmkvManager.decodeSettingsBool(
+            AppConfig.PREF_DOUBLE_COLUMN_DISPLAY,
+            false
+        )
+
     private var data: MutableList<ServersCache> = mutableListOf()
 
     @SuppressLint("NotifyDataSetChanged")
-    fun setData(newData: MutableList<ServersCache>?, position: Int = -1) {
+    fun setData(
+        newData: MutableList<ServersCache>?,
+        position: Int = -1
+    ) {
         data = newData?.toMutableList() ?: mutableListOf()
 
-        if (position >= 0 && position in data.indices) {
+        if (
+            position >= 0 &&
+            position in data.indices
+        ) {
             notifyItemChanged(position)
         } else {
             notifyDataSetChanged()
         }
     }
 
-    override fun getItemCount() = data.size + 1
+    override fun getItemCount(): Int {
+        return data.size + 1
+    }
 
-    override fun onBindViewHolder(holder: BaseViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: BaseViewHolder,
+        position: Int
+    ) {
         if (holder is MainViewHolder) {
-            val context = holder.itemMainBinding.root.context
-            val guid = data[position].guid
-            val profile = data[position].profile
 
-            holder.itemView.setBackgroundColor(Color.TRANSPARENT)
+            val context =
+                holder.itemMainBinding.root.context
 
-            //Name address
-            holder.itemMainBinding.tvName.text = profile.remarks
-            holder.itemMainBinding.tvStatistics.text = getAddress(profile)
-            holder.itemMainBinding.tvType.text = getProtocolDescription(profile)
+            val guid =
+                data[position].guid
 
-            //TestResult
-            val aff = MmkvManager.decodeServerAffiliationInfo(guid)
-            holder.itemMainBinding.tvTestResult.text = aff?.getTestDelayString().orEmpty()
-            if ((aff?.testDelayMillis ?: 0L) < 0L) {
-                holder.itemMainBinding.tvTestResult.setTextColor(ContextCompat.getColor(context, R.color.colorPingRed))
+            val profile =
+                data[position].profile
+
+            holder.itemView.setBackgroundColor(
+                Color.TRANSPARENT
+            )
+
+            /*
+             * Server information
+             */
+            holder.itemMainBinding.tvName.text =
+                profile.remarks
+
+            holder.itemMainBinding.tvStatistics.text =
+                getAddress(profile)
+
+            holder.itemMainBinding.tvType.text =
+                getProtocolDescription(profile)
+
+            /*
+             * Ping result
+             */
+            val aff =
+                MmkvManager.decodeServerAffiliationInfo(
+                    guid
+                )
+
+            val delay =
+                aff?.testDelayMillis ?: 0L
+
+            holder.itemMainBinding.tvTestResult.text =
+                aff?.getTestDelayString().orEmpty()
+
+            if (delay < 0L) {
+
+                holder.itemMainBinding.tvTestResult
+                    .setTextColor(
+                        ContextCompat.getColor(
+                            context,
+                            R.color.colorPingRed
+                        )
+                    )
+
             } else {
-                holder.itemMainBinding.tvTestResult.setTextColor(ContextCompat.getColor(context, R.color.colorPing))
+
+                holder.itemMainBinding.tvTestResult
+                    .setTextColor(
+                        ContextCompat.getColor(
+                            context,
+                            R.color.colorPing
+                        )
+                    )
             }
 
-            //layoutIndicator
-            if (guid == MmkvManager.getSelectServer()) {
-                holder.itemMainBinding.layoutIndicator.setBackgroundResource(R.color.colorIndicator)
+            /*
+             * MojAzad V3 Server Health
+             */
+            bindServerHealth(
+                holder = holder,
+                delay = delay
+            )
+
+            /*
+             * Selected server indicator
+             */
+            if (
+                guid ==
+                MmkvManager.getSelectServer()
+            ) {
+
+                holder.itemMainBinding.layoutIndicator
+                    .setBackgroundResource(
+                        R.color.colorIndicator
+                    )
+
             } else {
-                holder.itemMainBinding.layoutIndicator.setBackgroundResource(0)
+
+                holder.itemMainBinding.layoutIndicator
+                    .setBackgroundResource(
+                        0
+                    )
             }
 
-            //subscription remarks
-            val subRemarks = getSubscriptionRemarks(profile)
-            holder.itemMainBinding.tvSubscription.text = subRemarks
-            holder.itemMainBinding.layoutSubscription.visibility = if (subRemarks.isEmpty()) View.GONE else View.VISIBLE
+            /*
+             * Subscription remarks
+             */
+            val subRemarks =
+                getSubscriptionRemarks(
+                    profile
+                )
 
-            //layout
+            holder.itemMainBinding.tvSubscription.text =
+                subRemarks
+
+            holder.itemMainBinding.layoutSubscription.visibility =
+                if (subRemarks.isEmpty()) {
+                    View.GONE
+                } else {
+                    View.VISIBLE
+                }
+
+            /*
+             * Layout actions
+             */
             if (doubleColumnDisplay) {
-                holder.itemMainBinding.layoutShare.visibility = View.GONE
-                holder.itemMainBinding.layoutEdit.visibility = View.GONE
-                holder.itemMainBinding.layoutRemove.visibility = View.GONE
-                holder.itemMainBinding.layoutMore.visibility = View.VISIBLE
 
-                holder.itemMainBinding.layoutMore.setOnClickListener {
-                    adapterListener?.onShare(guid, profile, position, true)
-                }
+                holder.itemMainBinding.layoutShare.visibility =
+                    View.GONE
+
+                holder.itemMainBinding.layoutEdit.visibility =
+                    View.GONE
+
+                holder.itemMainBinding.layoutRemove.visibility =
+                    View.GONE
+
+                holder.itemMainBinding.layoutMore.visibility =
+                    View.VISIBLE
+
+                holder.itemMainBinding.layoutMore
+                    .setOnClickListener {
+
+                        adapterListener?.onShare(
+                            guid,
+                            profile,
+                            position,
+                            true
+                        )
+                    }
+
             } else {
-                holder.itemMainBinding.layoutShare.visibility = View.VISIBLE
-                holder.itemMainBinding.layoutEdit.visibility = View.VISIBLE
-                holder.itemMainBinding.layoutRemove.visibility = View.VISIBLE
-                holder.itemMainBinding.layoutMore.visibility = View.GONE
 
-                holder.itemMainBinding.layoutShare.setOnClickListener {
-                    adapterListener?.onShare(guid, profile, position, false)
-                }
+                holder.itemMainBinding.layoutShare.visibility =
+                    View.VISIBLE
 
-                holder.itemMainBinding.layoutEdit.setOnClickListener {
-                    adapterListener?.onEdit(guid, position, profile)
-                }
-                holder.itemMainBinding.layoutRemove.setOnClickListener {
-                    adapterListener?.onRemove(guid, position)
-                }
+                holder.itemMainBinding.layoutEdit.visibility =
+                    View.VISIBLE
+
+                holder.itemMainBinding.layoutRemove.visibility =
+                    View.VISIBLE
+
+                holder.itemMainBinding.layoutMore.visibility =
+                    View.GONE
+
+                holder.itemMainBinding.layoutShare
+                    .setOnClickListener {
+
+                        adapterListener?.onShare(
+                            guid,
+                            profile,
+                            position,
+                            false
+                        )
+                    }
+
+                holder.itemMainBinding.layoutEdit
+                    .setOnClickListener {
+
+                        adapterListener?.onEdit(
+                            guid,
+                            position,
+                            profile
+                        )
+                    }
+
+                holder.itemMainBinding.layoutRemove
+                    .setOnClickListener {
+
+                        adapterListener?.onRemove(
+                            guid,
+                            position
+                        )
+                    }
             }
 
-            holder.itemMainBinding.infoContainer.setOnClickListener {
-                adapterListener?.onSelectServer(guid)
+            holder.itemMainBinding.infoContainer
+                .setOnClickListener {
+
+                    adapterListener?.onSelectServer(
+                        guid
+                    )
+                }
+        }
+    }
+
+    /*
+     * MojAzad V3
+     *
+     * Displays a compact colored health icon
+     * beside the server ping.
+     */
+    private fun bindServerHealth(
+        holder: MainViewHolder,
+        delay: Long
+    ) {
+
+        val healthIcon =
+            holder.itemMainBinding.ivServerHealth
+
+        /*
+         * No ping test has been performed yet.
+         */
+        if (delay == 0L) {
+
+            healthIcon.visibility =
+                View.GONE
+
+            healthIcon.contentDescription =
+                null
+
+            return
+        }
+
+        healthIcon.visibility =
+            View.VISIBLE
+
+        val healthColor: Int
+        val healthDescription: String
+
+        when {
+
+            /*
+             * Failed ping / unreachable server.
+             */
+            delay < 0L -> {
+
+                healthColor =
+                    Color.parseColor(
+                        HEALTH_COLOR_OFFLINE
+                    )
+
+                healthDescription =
+                    "Offline"
+            }
+
+            /*
+             * Excellent server.
+             */
+            delay <= HEALTH_EXCELLENT_MAX -> {
+
+                healthColor =
+                    Color.parseColor(
+                        HEALTH_COLOR_EXCELLENT
+                    )
+
+                healthDescription =
+                    "Excellent"
+            }
+
+            /*
+             * Good server.
+             */
+            delay <= HEALTH_GOOD_MAX -> {
+
+                healthColor =
+                    Color.parseColor(
+                        HEALTH_COLOR_GOOD
+                    )
+
+                healthDescription =
+                    "Good"
+            }
+
+            /*
+             * High latency but server is reachable.
+             */
+            else -> {
+
+                healthColor =
+                    Color.parseColor(
+                        HEALTH_COLOR_WEAK
+                    )
+
+                healthDescription =
+                    "Weak"
             }
         }
 
+        healthIcon.imageTintList =
+            ColorStateList.valueOf(
+                healthColor
+            )
+
+        healthIcon.contentDescription =
+            "Server health: $healthDescription"
     }
 
     /**
-     * Gets the server address information
-     * Hides part of IP or domain information for privacy protection
-     * @param profile The server configuration
-     * @return Formatted address string
+     * Gets the server address information.
+     *
+     * @param profile The server configuration.
+     * @return Formatted address string.
      */
-    private fun getAddress(profile: ProfileItem): String {
-        return profile.description.nullIfBlank() ?: AngConfigManager.generateDescription(profile)
+    private fun getAddress(
+        profile: ProfileItem
+    ): String {
+
+        return profile.description
+            .nullIfBlank()
+            ?: AngConfigManager.generateDescription(
+                profile
+            )
     }
 
     /**
-     * Gets the subscription remarks information
-     * @param profile The server configuration
-     * @return Subscription remarks string, or empty string if none
+     * Gets the subscription remarks information.
+     *
+     * @param profile The server configuration.
+     * @return Subscription remarks string,
+     * or empty string if none.
      */
-    private fun getSubscriptionRemarks(profile: ProfileItem): String {
+    private fun getSubscriptionRemarks(
+        profile: ProfileItem
+    ): String {
+
         val subRemarks =
-            if (mainViewModel.subscriptionId.isEmpty())
-                MmkvManager.decodeSubscription(profile.subscriptionId)?.remarks?.firstOrNull()
-            else
+            if (
+                mainViewModel.subscriptionId.isEmpty()
+            ) {
+
+                MmkvManager
+                    .decodeSubscription(
+                        profile.subscriptionId
+                    )
+                    ?.remarks
+                    ?.firstOrNull()
+
+            } else {
+
                 null
-        return subRemarks?.toString() ?: ""
+            }
+
+        return subRemarks?.toString()
+            ?: ""
     }
 
-    private fun getProtocolDescription(profile: ProfileItem): String {
-        if (profile.configType.isComplexType()) {
+    private fun getProtocolDescription(
+        profile: ProfileItem
+    ): String {
+
+        if (
+            profile.configType.isComplexType()
+        ) {
             return profile.configType.name
         }
 
-        val parts = mutableListOf<String>()
-        parts.add(profile.configType.name)
+        val parts =
+            mutableListOf<String>()
 
-        // Transport: hide tcp or blank
+        parts.add(
+            profile.configType.name
+        )
+
+        /*
+         * Transport:
+         * hide TCP or blank.
+         */
         profile.network?.let { net ->
-            if (net.isNotBlank() && !net.equals("tcp", ignoreCase = true)) {
-                parts.add(net)
+
+            if (
+                net.isNotBlank() &&
+                !net.equals(
+                    "tcp",
+                    ignoreCase = true
+                )
+            ) {
+
+                parts.add(
+                    net
+                )
             }
         }
 
-        // Security: hide blank or tls
+        /*
+         * Security:
+         * hide blank or normal TLS.
+         */
         profile.security?.let { sec ->
+
             if (sec.isNotBlank()) {
-                if (profile.insecure == true && sec.equals("tls", ignoreCase = true)) {
-                    parts.add("$sec insecure") // TODO
+
+                if (
+                    profile.insecure == true &&
+                    sec.equals(
+                        "tls",
+                        ignoreCase = true
+                    )
+                ) {
+
+                    parts.add(
+                        "$sec insecure"
+                    )
+
                 } else {
-                    parts.add(sec)
+
+                    parts.add(
+                        sec
+                    )
                 }
             }
         }
 
-        return parts.joinToString(" / ")
+        return parts.joinToString(
+            " / "
+        )
     }
 
-    fun removeServerSub(guid: String, position: Int) {
-        val idx = data.indexOfFirst { it.guid == guid }
+    fun removeServerSub(
+        guid: String,
+        position: Int
+    ) {
+
+        val idx =
+            data.indexOfFirst {
+                it.guid == guid
+            }
+
         if (idx >= 0) {
-            data.removeAt(idx)
-            notifyItemRemoved(idx)
-            notifyItemRangeChanged(idx, data.size - idx)
+
+            data.removeAt(
+                idx
+            )
+
+            notifyItemRemoved(
+                idx
+            )
+
+            notifyItemRangeChanged(
+                idx,
+                data.size - idx
+            )
         }
     }
 
-    fun setSelectServer(fromPosition: Int, toPosition: Int) {
-        notifyItemChanged(fromPosition)
-        notifyItemChanged(toPosition)
+    fun setSelectServer(
+        fromPosition: Int,
+        toPosition: Int
+    ) {
+
+        notifyItemChanged(
+            fromPosition
+        )
+
+        notifyItemChanged(
+            toPosition
+        )
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BaseViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int
+    ): BaseViewHolder {
+
         return when (viewType) {
-            VIEW_TYPE_ITEM ->
-                MainViewHolder(ItemRecyclerMainBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
-            else ->
-                FooterViewHolder(ItemRecyclerFooterBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+            VIEW_TYPE_ITEM -> {
+
+                MainViewHolder(
+                    ItemRecyclerMainBinding.inflate(
+                        LayoutInflater.from(
+                            parent.context
+                        ),
+                        parent,
+                        false
+                    )
+                )
+            }
+
+            else -> {
+
+                FooterViewHolder(
+                    ItemRecyclerFooterBinding.inflate(
+                        LayoutInflater.from(
+                            parent.context
+                        ),
+                        parent,
+                        false
+                    )
+                )
+            }
         }
     }
 
-    override fun getItemViewType(position: Int): Int {
-        return if (position == data.size) {
+    override fun getItemViewType(
+        position: Int
+    ): Int {
+
+        return if (
+            position == data.size
+        ) {
+
             VIEW_TYPE_FOOTER
+
         } else {
+
             VIEW_TYPE_ITEM
         }
     }
 
-    open class BaseViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    open class BaseViewHolder(
+        itemView: View
+    ) : RecyclerView.ViewHolder(
+        itemView
+    ) {
+
         fun onItemSelected() {
-            itemView.setBackgroundColor(Color.LTGRAY)
+
+            itemView.setBackgroundColor(
+                Color.LTGRAY
+            )
         }
 
         fun onItemClear() {
-            itemView.setBackgroundColor(0)
+
+            itemView.setBackgroundColor(
+                0
+            )
         }
     }
 
-    class MainViewHolder(val itemMainBinding: ItemRecyclerMainBinding) :
-        BaseViewHolder(itemMainBinding.root), ItemTouchHelperViewHolder
+    class MainViewHolder(
+        val itemMainBinding:
+            ItemRecyclerMainBinding
+    ) : BaseViewHolder(
+        itemMainBinding.root
+    ),
+        ItemTouchHelperViewHolder
 
-    class FooterViewHolder(val itemFooterBinding: ItemRecyclerFooterBinding) :
-        BaseViewHolder(itemFooterBinding.root)
+    class FooterViewHolder(
+        val itemFooterBinding:
+            ItemRecyclerFooterBinding
+    ) : BaseViewHolder(
+        itemFooterBinding.root
+    )
 
-    override fun onItemMove(fromPosition: Int, toPosition: Int): Boolean {
-        mainViewModel.swapServer(fromPosition, toPosition)
-        if (fromPosition < data.size && toPosition < data.size) {
-            Collections.swap(data, fromPosition, toPosition)
+    override fun onItemMove(
+        fromPosition: Int,
+        toPosition: Int
+    ): Boolean {
+
+        mainViewModel.swapServer(
+            fromPosition,
+            toPosition
+        )
+
+        if (
+            fromPosition < data.size &&
+            toPosition < data.size
+        ) {
+
+            Collections.swap(
+                data,
+                fromPosition,
+                toPosition
+            )
         }
-        notifyItemMoved(fromPosition, toPosition)
+
+        notifyItemMoved(
+            fromPosition,
+            toPosition
+        )
+
         return true
     }
 
@@ -231,6 +660,9 @@ class MainRecyclerAdapter(
         // do nothing
     }
 
-    override fun onItemDismiss(position: Int) {
+    override fun onItemDismiss(
+        position: Int
+    ) {
+        // do nothing
     }
 }
