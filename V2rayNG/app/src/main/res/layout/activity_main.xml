@@ -32,7 +32,6 @@
 
         </com.google.android.material.appbar.AppBarLayout>
 
-
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -43,12 +42,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
-
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="vertical">
-
 
                     <com.google.android.material.progressindicator.LinearProgressIndicator
                         android:id="@+id/progress_bar"
@@ -59,7 +56,6 @@
                         app:indicatorColor="@color/md_theme_primary"
                         app:trackColor="@color/md_theme_primaryContainer"
                         app:trackThickness="3dp" />
-
 
                     <com.google.android.material.tabs.TabLayout
                         android:id="@+id/tab_group"
@@ -76,6 +72,55 @@
                         app:tabTextAppearance="@style/TabLayoutTextStyle"
                         app:tabTextColor="?attr/colorOnSurfaceVariant" />
 
+                    <!-- MojAzad V3 - Auto Failover -->
+                    <LinearLayout
+                        android:id="@+id/layout_auto_failover"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:background="?attr/colorSurface"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Auto Failover"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="تعویض خودکار سرور هنگام قطع اتصال"
+                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textSize="10sp" />
+
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_auto_failover"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="false"
+                            android:contentDescription="Auto Failover"
+                            android:showText="false" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider_color_light" />
 
                     <androidx.viewpager2.widget.ViewPager2
                         android:id="@+id/view_pager"
@@ -84,7 +129,6 @@
                         android:layout_weight="1"
                         android:background="@color/md_theme_background"
                         android:scrollbars="vertical" />
-
 
                     <LinearLayout
                         android:id="@+id/layout_test"
@@ -100,7 +144,7 @@
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
-                        android:background="@color/divider_color_light" />
+                            android:background="@color/divider_color_light" />
 
                         <TextView
                             android:id="@+id/tv_test_state"
@@ -115,7 +159,6 @@
                     </LinearLayout>
 
                 </LinearLayout>
-
 
                 <FrameLayout
                     android:layout_width="wrap_content"
@@ -141,13 +184,11 @@
 
                 </FrameLayout>
 
-
             </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
         </RelativeLayout>
 
     </LinearLayout>
-
 
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
