@@ -6,13 +6,13 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>MojAzad VPN | موج آزاد - دانلود VPN اندروید</title>
+    <title>MojAzad 3.0.2 | موج آزاد - دانلود VPN اندروید</title>
 
     <meta name="description"
-          content="MojAzad VPN یا موج آزاد، اپلیکیشن VPN اندروید با انتخاب خودکار بهترین سرور، تست هوشمند Ping، پشتیبانی از Subscription، VLESS، VMess، Trojan و Xray است.">
+          content="MojAzad 3.0.2 یا موج آزاد، اپلیکیشن VPN اندروید با انتخاب خودکار بهترین سرور، Auto Failover، تست هوشمند Ping، Dashboard اتصال، مدیریت Subscription و پشتیبانی از VLESS، VMess، Trojan و Xray است.">
 
     <meta name="keywords"
-          content="MojAzad, MojAzad VPN, موج آزاد, موج آزاد VPN, VPN اندروید, Android VPN, V2Ray, Xray, VLESS, VMess, Trojan">
+          content="MojAzad, MojAzad VPN, MojAzad 3.0.2, موج آزاد, موج آزاد VPN, VPN اندروید, Android VPN, V2Ray, Xray, VLESS, VMess, Trojan, Auto Failover">
 
     <meta name="robots"
           content="index, follow">
@@ -24,10 +24,10 @@
           href="https://hamidoffline.github.io/MojAzadVPN/">
 
     <meta property="og:title"
-          content="MojAzad VPN | موج آزاد">
+          content="MojAzad 3.0.2 | موج آزاد">
 
     <meta property="og:description"
-          content="دانلود MojAzad VPN برای Android با انتخاب خودکار بهترین سرور و تست هوشمند Ping.">
+          content="دانلود MojAzad 3.0.2 برای Android با انتخاب خودکار بهترین سرور، Auto Failover و Dashboard اتصال.">
 
     <meta property="og:type"
           content="website">
@@ -44,9 +44,10 @@
       "@type": "SoftwareApplication",
       "name": "MojAzad VPN",
       "alternateName": "موج آزاد",
+      "softwareVersion": "3.0.2",
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "Android",
-      "description": "MojAzad VPN is an Android VPN client with automatic best-server selection, smart ping and subscription support.",
+      "description": "MojAzad 3.0.2 is an Android VPN client with automatic best-server selection, Auto Failover, smart ping, connection dashboard and subscription support.",
       "url": "https://hamidoffline.github.io/MojAzadVPN/",
       "downloadUrl": "https://github.com/HamidOffline/MojAzadVPN/releases",
       "license": "https://www.gnu.org/licenses/gpl-3.0.html",
@@ -84,9 +85,20 @@
         }
 
         .hero p {
-            max-width: 700px;
+            max-width: 760px;
             margin: auto;
             font-size: 18px;
+        }
+
+        .version {
+            display: inline-block;
+            margin-top: 18px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.16);
+            border: 1px solid rgba(255,255,255,0.45);
+            font-size: 14px;
+            font-weight: bold;
         }
 
         .buttons {
@@ -131,6 +143,10 @@
 
         ul {
             padding-right: 22px;
+        }
+
+        .highlight {
+            border-right: 4px solid #0878e8;
         }
 
         .download {
@@ -179,13 +195,17 @@
 
 <header class="hero">
 
-    <h1>MojAzad VPN | موج آزاد 🌊</h1>
+    <h1>MojAzad | موج آزاد 🌊</h1>
 
     <p>
-        اپلیکیشن VPN برای Android با انتخاب خودکار بهترین سرور،
-        تست هوشمند Ping، مدیریت Subscription و پشتیبانی از
-        VLESS، VMess، Trojan و Xray.
+        VPN اندروید با انتخاب خودکار بهترین سرور،
+        Auto Failover، تست هوشمند Ping،
+        Dashboard اتصال و مدیریت چند Subscription.
     </p>
+
+    <div class="version">
+        نسخه 3.0.2
+    </div>
 
     <div class="buttons">
 
@@ -207,19 +227,43 @@
 
     <section>
 
-        <h2>MojAzad VPN چیست؟</h2>
+        <h2>MojAzad چیست؟</h2>
 
         <p>
-            MojAzad VPN یا موج آزاد یک کلاینت VPN متن‌باز برای
-            دستگاه‌های Android است که با هدف ساده‌تر کردن انتخاب
-            و اتصال به سرورها توسعه داده شده است.
+            MojAzad یا موج آزاد یک کلاینت VPN متن‌باز برای
+            Android است که با هدف ساده‌تر شدن انتخاب سرور،
+            اتصال سریع‌تر و مدیریت بهتر سرورها توسعه داده شده است.
         </p>
 
         <p>
-            برنامه می‌تواند سرورها را Ping کند، بهترین سرور را
-            بر اساس کمترین Ping معتبر انتخاب کند و اتصال را
-            ساده‌تر و سریع‌تر انجام دهد.
+            برنامه می‌تواند سرورها را به‌صورت خودکار تست کند،
+            سریع‌ترین سرور معتبر را انتخاب کند و اتصال را
+            بدون نیاز به انتخاب دستی سرور انجام دهد.
         </p>
+
+    </section>
+
+
+    <section class="highlight">
+
+        <h2>جدید در MojAzad 3.0.2</h2>
+
+        <ul>
+            <li>اضافه شدن Auto Failover</li>
+            <li>تعویض خودکار سرور هنگام قطع واقعی اتصال</li>
+            <li>انتخاب خودکار بهترین سرور بعد از Real Ping</li>
+            <li>اضافه شدن Dashboard اتصال</li>
+            <li>نمایش Ping اتصال</li>
+            <li>نمایش Country / IP</li>
+            <li>نمایش Download و Upload</li>
+            <li>نمایش مدت زمان اتصال</li>
+            <li>نمایش وضعیت سلامت سرورها</li>
+            <li>بهبود ظاهر سرور انتخاب‌شده</li>
+            <li>بهبود Navigation Drawer</li>
+            <li>نمایش خودکار نسخه نصب‌شده داخل برنامه</li>
+            <li>بهبود Build و Release خودکار</li>
+            <li>رفع باگ‌ها و بهبود پایداری</li>
+        </ul>
 
     </section>
 
@@ -232,6 +276,11 @@
             <li>انتخاب خودکار بهترین سرور</li>
             <li>تست هوشمند Ping سرورها</li>
             <li>اتصال خودکار به سریع‌ترین سرور</li>
+            <li>Auto Failover برای بازیابی اتصال</li>
+            <li>نمایش سلامت سرورها</li>
+            <li>Dashboard وضعیت اتصال</li>
+            <li>نمایش Download و Upload</li>
+            <li>نمایش Ping و مدت اتصال</li>
             <li>پشتیبانی از چند Subscription</li>
             <li>افزودن Subscription از Clipboard</li>
             <li>بروزرسانی خودکار Subscriptionها</li>
@@ -239,7 +288,7 @@
             <li>پشتیبانی از VMess</li>
             <li>پشتیبانی از Trojan</li>
             <li>پشتیبانی از Xray و V2Ray</li>
-            <li>رابط کاربری روشن و تاریک</li>
+            <li>پشتیبانی از Light / Dark Mode</li>
             <li>نمایش دو ستونه سرورها</li>
             <li>نسخه Universal برای Android</li>
         </ul>
@@ -249,21 +298,48 @@
 
     <section>
 
-        <h2>MojAzad.V2</h2>
+        <h2>Auto Failover</h2>
 
         <p>
-            MojAzad.V2 نسل دوم رابط و امکانات موج آزاد است.
-            در این نسخه سیستم انتخاب سرور، تست Ping،
-            مدیریت Subscriptionها، رابط کاربری و تجربه اتصال
-            بهبود داده شده است.
+            در صورت قطع ناگهانی اتصال VPN، قابلیت Auto Failover
+            می‌تواند سرورها را دوباره بررسی کرده و یک سرور سالم
+            و مناسب را برای اتصال مجدد انتخاب کند.
         </p>
+
+        <p>
+            توقف دستی VPN باعث اجرای Auto Failover نمی‌شود و
+            هنگام اتصال سالم نیز صرفاً به دلیل تغییر Ping،
+            سرور بدون نیاز تغییر نمی‌کند.
+        </p>
+
+    </section>
+
+
+    <section>
+
+        <h2>Dashboard اتصال</h2>
+
+        <p>
+            Dashboard جدید MojAzad اطلاعات مهم اتصال را در
+            همان صفحه اصلی نمایش می‌دهد.
+        </p>
+
+        <ul>
+            <li>نام سرور فعال</li>
+            <li>Country / IP</li>
+            <li>Ping اتصال</li>
+            <li>وضعیت سلامت سرور</li>
+            <li>Download</li>
+            <li>Upload</li>
+            <li>مدت زمان اتصال</li>
+        </ul>
 
     </section>
 
 
     <section class="download">
 
-        <h2>دانلود MojAzad VPN برای Android</h2>
+        <h2>دانلود MojAzad 3.0.2 برای Android</h2>
 
         <p>
             آخرین نسخه رسمی MojAzad را از بخش GitHub Releases
@@ -271,13 +347,35 @@
         </p>
 
         <p>
+            نسخه‌های ARM64، ARM 32-bit، x86، x86_64 و Universal
+            منتشر می‌شوند.
+        </p>
+
+        <p>
             اگر معماری پردازنده گوشی خود را نمی‌دانید،
-            نسخه Universal را انتخاب کنید.
+            نسخه <strong>Universal</strong> را انتخاب کنید.
         </p>
 
         <a href="https://github.com/HamidOffline/MojAzadVPN/releases">
-            دانلود MojAzad VPN
+            دانلود MojAzad 3.0.2
         </a>
+
+    </section>
+
+
+    <section>
+
+        <h2>بروزرسانی MojAzad</h2>
+
+        <p>
+            نسخه‌های رسمی MojAzad با کلید ثابت Release امضا می‌شوند
+            و نسخه‌های جدید با Version Code بالاتر منتشر می‌شوند.
+        </p>
+
+        <p>
+            بنابراین در حالت عادی می‌توانید نسخه جدید را روی نسخه
+            قبلی نصب و بروزرسانی کنید و نیازی به حذف برنامه ندارید.
+        </p>
 
     </section>
 
@@ -325,7 +423,7 @@
 <footer>
 
     <p>
-        🌊 MojAzad VPN | موج آزاد
+        🌊 MojAzad 3.0.2 | موج آزاد
     </p>
 
     <p>
