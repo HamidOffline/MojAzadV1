@@ -221,8 +221,8 @@
                                 android:layout_weight="1"
                                 android:lines="1"
                                 android:text="↓ 0 B"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="10sp"
+                                android:textColor="#00A86B"
+                                android:textSize="13sp"
                                 android:textStyle="bold" />
 
                             <TextView
@@ -233,8 +233,8 @@
                                 android:gravity="center"
                                 android:lines="1"
                                 android:text="↑ 0 B"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="10sp"
+                                android:textColor="#F59E0B"
+                                android:textSize="13sp"
                                 android:textStyle="bold" />
 
                             <TextView
