@@ -143,7 +143,7 @@
                         android:orientation="vertical"
                         android:paddingStart="18dp"
                         android:paddingTop="7dp"
-                        android:paddingEnd="88dp"
+                        android:paddingEnd="124dp"
                         android:paddingBottom="7dp">
 
                         <View
