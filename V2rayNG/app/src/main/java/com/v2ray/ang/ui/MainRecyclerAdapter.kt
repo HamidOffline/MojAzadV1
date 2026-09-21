@@ -3,11 +3,14 @@ package com.v2ray.ang.ui
 import android.annotation.SuppressLint
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.color.MaterialColors
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.contracts.MainAdapterListener
@@ -27,11 +30,16 @@ import java.util.Collections
 class MainRecyclerAdapter(
     private val mainViewModel: MainViewModel,
     private val adapterListener: MainAdapterListener?
-) : RecyclerView.Adapter<MainRecyclerAdapter.BaseViewHolder>(), ItemTouchHelperAdapter {
+) : RecyclerView.Adapter<MainRecyclerAdapter.BaseViewHolder>(),
+    ItemTouchHelperAdapter {
 
     companion object {
-        private const val VIEW_TYPE_ITEM = 1
-        private const val VIEW_TYPE_FOOTER = 2
+
+        private const val VIEW_TYPE_ITEM =
+            1
+
+        private const val VIEW_TYPE_FOOTER =
+            2
 
         /*
          * MojAzad V3 Server Health
@@ -42,13 +50,35 @@ class MainRecyclerAdapter(
          * Negative     = Offline
          * 0            = Not tested
          */
-        private const val HEALTH_EXCELLENT_MAX = 200L
-        private const val HEALTH_GOOD_MAX = 400L
+        private const val HEALTH_EXCELLENT_MAX =
+            200L
 
-        private const val HEALTH_COLOR_EXCELLENT = "#00A86B"
-        private const val HEALTH_COLOR_GOOD = "#0878E8"
-        private const val HEALTH_COLOR_WEAK = "#F59E0B"
-        private const val HEALTH_COLOR_OFFLINE = "#E53935"
+        private const val HEALTH_GOOD_MAX =
+            400L
+
+        private const val HEALTH_COLOR_EXCELLENT =
+            "#00A86B"
+
+        private const val HEALTH_COLOR_GOOD =
+            "#0878E8"
+
+        private const val HEALTH_COLOR_WEAK =
+            "#F59E0B"
+
+        private const val HEALTH_COLOR_OFFLINE =
+            "#E53935"
+
+        /*
+         * MojAzad selected server card.
+         */
+        private const val SELECTED_BACKGROUND_BLEND =
+            0.20f
+
+        private const val SELECTED_CORNER_RADIUS_DP =
+            14f
+
+        private const val SELECTED_STROKE_WIDTH_DP =
+            1f
     }
 
     private val doubleColumnDisplay =
@@ -57,74 +87,123 @@ class MainRecyclerAdapter(
             false
         )
 
-    private var data: MutableList<ServersCache> = mutableListOf()
+    private var data:
+        MutableList<ServersCache> =
+        mutableListOf()
 
     @SuppressLint("NotifyDataSetChanged")
     fun setData(
         newData: MutableList<ServersCache>?,
         position: Int = -1
     ) {
-        data = newData?.toMutableList() ?: mutableListOf()
 
-        if (position >= 0 && position in data.indices) {
-            notifyItemChanged(position)
+        data =
+            newData
+                ?.toMutableList()
+                ?: mutableListOf()
+
+        if (
+            position >= 0 &&
+            position in data.indices
+        ) {
+
+            notifyItemChanged(
+                position
+            )
+
         } else {
+
             notifyDataSetChanged()
         }
     }
 
-    override fun getItemCount(): Int {
-        return data.size + 1
+    override fun getItemCount():
+        Int {
+
+        return data.size +
+            1
     }
 
     override fun onBindViewHolder(
         holder: BaseViewHolder,
         position: Int
     ) {
-        if (holder is MainViewHolder) {
+
+        if (
+            holder is MainViewHolder
+        ) {
 
             val context =
-                holder.itemMainBinding.root.context
+                holder
+                    .itemMainBinding
+                    .root
+                    .context
 
             val guid =
-                data[position].guid
+                data[
+                    position
+                ].guid
 
             val profile =
-                data[position].profile
+                data[
+                    position
+                ].profile
 
-            holder.itemView.setBackgroundColor(
-                Color.TRANSPARENT
-            )
+            holder.itemView
+                .setBackgroundColor(
+                    Color.TRANSPARENT
+                )
 
             /*
              * Server information
              */
-            holder.itemMainBinding.tvName.text =
+            holder.itemMainBinding
+                .tvName
+                .text =
                 profile.remarks
 
-            holder.itemMainBinding.tvStatistics.text =
-                getAddress(profile)
+            holder.itemMainBinding
+                .tvStatistics
+                .text =
+                getAddress(
+                    profile
+                )
 
-            holder.itemMainBinding.tvType.text =
-                getProtocolDescription(profile)
+            holder.itemMainBinding
+                .tvType
+                .text =
+                getProtocolDescription(
+                    profile
+                )
 
             /*
              * Ping
              */
             val aff =
-                MmkvManager.decodeServerAffiliationInfo(
-                    guid
-                )
+                MmkvManager
+                    .decodeServerAffiliationInfo(
+                        guid
+                    )
 
             val delay =
-                aff?.testDelayMillis ?: 0L
+                aff
+                    ?.testDelayMillis
+                    ?: 0L
 
-            holder.itemMainBinding.tvTestResult.text =
-                aff?.getTestDelayString().orEmpty()
+            holder.itemMainBinding
+                .tvTestResult
+                .text =
+                aff
+                    ?.getTestDelayString()
+                    .orEmpty()
 
-            if (delay < 0L) {
+            if (
+                delay <
+                0L
+            ) {
 
-                holder.itemMainBinding.tvTestResult
+                holder.itemMainBinding
+                    .tvTestResult
                     .setTextColor(
                         ContextCompat.getColor(
                             context,
@@ -134,7 +213,8 @@ class MainRecyclerAdapter(
 
             } else {
 
-                holder.itemMainBinding.tvTestResult
+                holder.itemMainBinding
+                    .tvTestResult
                     .setTextColor(
                         ContextCompat.getColor(
                             context,
@@ -147,27 +227,36 @@ class MainRecyclerAdapter(
              * MojAzad V3 Server Health
              */
             bindServerHealth(
-                holder = holder,
-                delay = delay
+                holder =
+                    holder,
+
+                delay =
+                    delay
             )
 
             /*
-             * Selected server
+             * MojAzad selected server appearance.
+             *
+             * Selected:
+             * - existing indicator remains visible
+             * - subtle Primary-tinted background
+             * - thin Primary border
+             *
+             * Unselected:
+             * - original drawable is restored
+             *
+             * Restoring the original drawable is important
+             * because RecyclerView reuses ViewHolders.
              */
-            if (guid == MmkvManager.getSelectServer()) {
+            bindSelectedServerAppearance(
+                holder =
+                    holder,
 
-                holder.itemMainBinding.layoutIndicator
-                    .setBackgroundResource(
-                        R.color.colorIndicator
-                    )
-
-            } else {
-
-                holder.itemMainBinding.layoutIndicator
-                    .setBackgroundResource(
-                        0
-                    )
-            }
+                isSelected =
+                    guid ==
+                        MmkvManager
+                            .getSelectServer()
+            )
 
             /*
              * Subscription
@@ -177,97 +266,256 @@ class MainRecyclerAdapter(
                     profile
                 )
 
-            holder.itemMainBinding.tvSubscription.text =
+            holder.itemMainBinding
+                .tvSubscription
+                .text =
                 subRemarks
 
-            holder.itemMainBinding.layoutSubscription.visibility =
-                if (subRemarks.isEmpty()) {
+            holder.itemMainBinding
+                .layoutSubscription
+                .visibility =
+                if (
+                    subRemarks.isEmpty()
+                ) {
+
                     View.GONE
+
                 } else {
+
                     View.VISIBLE
                 }
 
             /*
              * Actions
              */
-            if (doubleColumnDisplay) {
+            if (
+                doubleColumnDisplay
+            ) {
 
-                holder.itemMainBinding.layoutShare.visibility =
+                holder.itemMainBinding
+                    .layoutShare
+                    .visibility =
                     View.GONE
 
-                holder.itemMainBinding.layoutEdit.visibility =
+                holder.itemMainBinding
+                    .layoutEdit
+                    .visibility =
                     View.GONE
 
-                holder.itemMainBinding.layoutRemove.visibility =
+                holder.itemMainBinding
+                    .layoutRemove
+                    .visibility =
                     View.GONE
 
-                holder.itemMainBinding.layoutMore.visibility =
+                holder.itemMainBinding
+                    .layoutMore
+                    .visibility =
                     View.VISIBLE
 
-                holder.itemMainBinding.layoutMore
+                holder.itemMainBinding
+                    .layoutMore
                     .setOnClickListener {
 
-                        adapterListener?.onShare(
-                            guid,
-                            profile,
-                            position,
-                            true
-                        )
+                        adapterListener
+                            ?.onShare(
+                                guid,
+                                profile,
+                                position,
+                                true
+                            )
                     }
 
             } else {
 
-                holder.itemMainBinding.layoutShare.visibility =
+                holder.itemMainBinding
+                    .layoutShare
+                    .visibility =
                     View.VISIBLE
 
-                holder.itemMainBinding.layoutEdit.visibility =
+                holder.itemMainBinding
+                    .layoutEdit
+                    .visibility =
                     View.VISIBLE
 
-                holder.itemMainBinding.layoutRemove.visibility =
+                holder.itemMainBinding
+                    .layoutRemove
+                    .visibility =
                     View.VISIBLE
 
-                holder.itemMainBinding.layoutMore.visibility =
+                holder.itemMainBinding
+                    .layoutMore
+                    .visibility =
                     View.GONE
 
-                holder.itemMainBinding.layoutShare
+                holder.itemMainBinding
+                    .layoutShare
                     .setOnClickListener {
 
-                        adapterListener?.onShare(
-                            guid,
-                            profile,
-                            position,
-                            false
-                        )
+                        adapterListener
+                            ?.onShare(
+                                guid,
+                                profile,
+                                position,
+                                false
+                            )
                     }
 
-                holder.itemMainBinding.layoutEdit
+                holder.itemMainBinding
+                    .layoutEdit
                     .setOnClickListener {
 
-                        adapterListener?.onEdit(
-                            guid,
-                            position,
-                            profile
-                        )
+                        adapterListener
+                            ?.onEdit(
+                                guid,
+                                position,
+                                profile
+                            )
                     }
 
-                holder.itemMainBinding.layoutRemove
+                holder.itemMainBinding
+                    .layoutRemove
                     .setOnClickListener {
 
-                        adapterListener?.onRemove(
-                            guid,
-                            position
-                        )
+                        adapterListener
+                            ?.onRemove(
+                                guid,
+                                position
+                            )
                     }
             }
 
-            holder.itemMainBinding.infoContainer
+            holder.itemMainBinding
+                .infoContainer
                 .setOnClickListener {
 
-                    adapterListener?.onSelectServer(
-                        guid
-                    )
+                    adapterListener
+                        ?.onSelectServer(
+                            guid
+                        )
                 }
         }
+    }
+
+    /**
+     * MojAzad selected server card appearance.
+     *
+     * Uses Material theme colors directly so the
+     * appearance follows both Light and Dark mode.
+     */
+    private fun bindSelectedServerAppearance(
+        holder: MainViewHolder,
+        isSelected: Boolean
+    ) {
+
+        val binding =
+            holder.itemMainBinding
+
+        if (
+            !isSelected
+        ) {
+
+            binding.layoutIndicator
+                .setBackgroundResource(
+                    0
+                )
+
+            /*
+             * Restore original server-card background.
+             *
+             * This also prevents a recycled selected
+             * ViewHolder from tinting another server.
+             */
+            binding.infoContainer
+                .setBackgroundResource(
+                    R.drawable.bg_mojazad_server_item
+                )
+
+            return
+        }
+
+        val context =
+            binding.root.context
+
+        val primaryColor =
+            MaterialColors.getColor(
+                binding.infoContainer,
+                com.google.android.material.R.attr.colorPrimary
+            )
+
+        val surfaceColor =
+            MaterialColors.getColor(
+                binding.infoContainer,
+                com.google.android.material.R.attr.colorSurface
+            )
+
+        val primaryContainerColor =
+            MaterialColors.getColor(
+                binding.infoContainer,
+                com.google.android.material.R.attr.colorPrimaryContainer
+            )
+
+        /*
+         * Keep the existing left indicator.
+         */
+        binding.layoutIndicator
+            .setBackgroundColor(
+                primaryColor
+            )
+
+        /*
+         * Blend a small amount of PrimaryContainer into
+         * Surface. The effect remains subtle in both
+         * Light and Dark mode.
+         */
+        val selectedBackgroundColor =
+            ColorUtils.blendARGB(
+                surfaceColor,
+                primaryContainerColor,
+                SELECTED_BACKGROUND_BLEND
+            )
+
+        val density =
+            context
+                .resources
+                .displayMetrics
+                .density
+
+        val cornerRadius =
+            SELECTED_CORNER_RADIUS_DP *
+                density
+
+        val strokeWidth =
+            (
+                SELECTED_STROKE_WIDTH_DP *
+                    density
+                )
+                .toInt()
+                .coerceAtLeast(
+                    1
+                )
+
+        val selectedDrawable =
+            GradientDrawable().apply {
+
+                shape =
+                    GradientDrawable.RECTANGLE
+
+                setColor(
+                    selectedBackgroundColor
+                )
+
+                setStroke(
+                    strokeWidth,
+                    primaryColor
+                )
+
+                this.cornerRadius =
+                    cornerRadius
+            }
+
+        binding.infoContainer
+            .background =
+            selectedDrawable
     }
 
     /*
@@ -286,12 +534,16 @@ class MainRecyclerAdapter(
     ) {
 
         val healthIcon =
-            holder.itemMainBinding.ivServerHealth
+            holder.itemMainBinding
+                .ivServerHealth
 
         /*
          * Server has not been tested yet.
          */
-        if (delay == 0L) {
+        if (
+            delay ==
+            0L
+        ) {
 
             healthIcon.visibility =
                 View.GONE
@@ -310,60 +562,72 @@ class MainRecyclerAdapter(
             /*
              * Offline
              */
-            delay < 0L -> {
+            delay <
+                0L -> {
 
-                healthIcon.setImageResource(
-                    R.drawable.ic_health_offline
-                )
+                healthIcon
+                    .setImageResource(
+                        R.drawable.ic_health_offline
+                    )
 
-                healthIcon.imageTintList =
+                healthIcon
+                    .imageTintList =
                     ColorStateList.valueOf(
                         Color.parseColor(
                             HEALTH_COLOR_OFFLINE
                         )
                     )
 
-                healthIcon.contentDescription =
+                healthIcon
+                    .contentDescription =
                     "Server health: Offline"
             }
 
             /*
              * Excellent
              */
-            delay <= HEALTH_EXCELLENT_MAX -> {
+            delay <=
+                HEALTH_EXCELLENT_MAX -> {
 
-                healthIcon.setImageResource(
-                    R.drawable.ic_health_excellent
-                )
+                healthIcon
+                    .setImageResource(
+                        R.drawable.ic_health_excellent
+                    )
 
-                healthIcon.imageTintList =
+                healthIcon
+                    .imageTintList =
                     ColorStateList.valueOf(
                         Color.parseColor(
                             HEALTH_COLOR_EXCELLENT
                         )
                     )
 
-                healthIcon.contentDescription =
+                healthIcon
+                    .contentDescription =
                     "Server health: Excellent"
             }
 
             /*
              * Good
              */
-            delay <= HEALTH_GOOD_MAX -> {
+            delay <=
+                HEALTH_GOOD_MAX -> {
 
-                healthIcon.setImageResource(
-                    R.drawable.ic_health_good
-                )
+                healthIcon
+                    .setImageResource(
+                        R.drawable.ic_health_good
+                    )
 
-                healthIcon.imageTintList =
+                healthIcon
+                    .imageTintList =
                     ColorStateList.valueOf(
                         Color.parseColor(
                             HEALTH_COLOR_GOOD
                         )
                     )
 
-                healthIcon.contentDescription =
+                healthIcon
+                    .contentDescription =
                     "Server health: Good"
             }
 
@@ -372,18 +636,21 @@ class MainRecyclerAdapter(
              */
             else -> {
 
-                healthIcon.setImageResource(
-                    R.drawable.ic_health_weak
-                )
+                healthIcon
+                    .setImageResource(
+                        R.drawable.ic_health_weak
+                    )
 
-                healthIcon.imageTintList =
+                healthIcon
+                    .imageTintList =
                     ColorStateList.valueOf(
                         Color.parseColor(
                             HEALTH_COLOR_WEAK
                         )
                     )
 
-                healthIcon.contentDescription =
+                healthIcon
+                    .contentDescription =
                     "Server health: Weak"
             }
         }
@@ -398,9 +665,10 @@ class MainRecyclerAdapter(
 
         return profile.description
             .nullIfBlank()
-            ?: AngConfigManager.generateDescription(
-                profile
-            )
+            ?: AngConfigManager
+                .generateDescription(
+                    profile
+                )
     }
 
     /**
@@ -411,7 +679,11 @@ class MainRecyclerAdapter(
     ): String {
 
         val subRemarks =
-            if (mainViewModel.subscriptionId.isEmpty()) {
+            if (
+                mainViewModel
+                    .subscriptionId
+                    .isEmpty()
+            ) {
 
                 MmkvManager
                     .decodeSubscription(
@@ -425,7 +697,8 @@ class MainRecyclerAdapter(
                 null
             }
 
-        return subRemarks?.toString()
+        return subRemarks
+            ?.toString()
             ?: ""
     }
 
@@ -433,63 +706,76 @@ class MainRecyclerAdapter(
         profile: ProfileItem
     ): String {
 
-        if (profile.configType.isComplexType()) {
-            return profile.configType.name
+        if (
+            profile.configType
+                .isComplexType()
+        ) {
+
+            return profile
+                .configType
+                .name
         }
 
         val parts =
             mutableListOf<String>()
 
         parts.add(
-            profile.configType.name
+            profile
+                .configType
+                .name
         )
 
         /*
          * Transport
          */
-        profile.network?.let { net ->
-
-            if (
-                net.isNotBlank() &&
-                !net.equals(
-                    "tcp",
-                    ignoreCase = true
-                )
-            ) {
-
-                parts.add(
-                    net
-                )
-            }
-        }
-
-        /*
-         * Security
-         */
-        profile.security?.let { sec ->
-
-            if (sec.isNotBlank()) {
+        profile.network
+            ?.let { net ->
 
                 if (
-                    profile.insecure == true &&
-                    sec.equals(
-                        "tls",
+                    net.isNotBlank() &&
+                    !net.equals(
+                        "tcp",
                         ignoreCase = true
                     )
                 ) {
 
                     parts.add(
-                        "$sec insecure"
-                    )
-
-                } else {
-
-                    parts.add(
-                        sec
+                        net
                     )
                 }
             }
-        }
+
+        /*
+         * Security
+         */
+        profile.security
+            ?.let { sec ->
+
+                if (
+                    sec.isNotBlank()
+                ) {
+
+                    if (
+                        profile.insecure ==
+                        true &&
+                        sec.equals(
+                            "tls",
+                            ignoreCase = true
+                        )
+                    ) {
+
+                        parts.add(
+                            "$sec insecure"
+                        )
+
+                    } else {
+
+                        parts.add(
+                            sec
+                        )
+                    }
+                }
+            }
 
         return parts.joinToString(
             " / "
@@ -503,10 +789,14 @@ class MainRecyclerAdapter(
 
         val idx =
             data.indexOfFirst {
-                it.guid == guid
+                it.guid ==
+                    guid
             }
 
-        if (idx >= 0) {
+        if (
+            idx >=
+            0
+        ) {
 
             data.removeAt(
                 idx
@@ -518,7 +808,8 @@ class MainRecyclerAdapter(
 
             notifyItemRangeChanged(
                 idx,
-                data.size - idx
+                data.size -
+                    idx
             )
         }
     }
@@ -542,31 +833,35 @@ class MainRecyclerAdapter(
         viewType: Int
     ): BaseViewHolder {
 
-        return when (viewType) {
+        return when (
+            viewType
+        ) {
 
             VIEW_TYPE_ITEM -> {
 
                 MainViewHolder(
-                    ItemRecyclerMainBinding.inflate(
-                        LayoutInflater.from(
-                            parent.context
-                        ),
-                        parent,
-                        false
-                    )
+                    ItemRecyclerMainBinding
+                        .inflate(
+                            LayoutInflater.from(
+                                parent.context
+                            ),
+                            parent,
+                            false
+                        )
                 )
             }
 
             else -> {
 
                 FooterViewHolder(
-                    ItemRecyclerFooterBinding.inflate(
-                        LayoutInflater.from(
-                            parent.context
-                        ),
-                        parent,
-                        false
-                    )
+                    ItemRecyclerFooterBinding
+                        .inflate(
+                            LayoutInflater.from(
+                                parent.context
+                            ),
+                            parent,
+                            false
+                        )
                 )
             }
         }
@@ -576,7 +871,10 @@ class MainRecyclerAdapter(
         position: Int
     ): Int {
 
-        return if (position == data.size) {
+        return if (
+            position ==
+            data.size
+        ) {
 
             VIEW_TYPE_FOOTER
 
@@ -588,53 +886,61 @@ class MainRecyclerAdapter(
 
     open class BaseViewHolder(
         itemView: View
-    ) : RecyclerView.ViewHolder(
-        itemView
-    ) {
+    ) :
+        RecyclerView.ViewHolder(
+            itemView
+        ) {
 
         fun onItemSelected() {
 
-            itemView.setBackgroundColor(
-                Color.LTGRAY
-            )
+            itemView
+                .setBackgroundColor(
+                    Color.LTGRAY
+                )
         }
 
         fun onItemClear() {
 
-            itemView.setBackgroundColor(
-                0
-            )
+            itemView
+                .setBackgroundColor(
+                    0
+                )
         }
     }
 
     class MainViewHolder(
         val itemMainBinding:
             ItemRecyclerMainBinding
-    ) : BaseViewHolder(
-        itemMainBinding.root
-    ),
+    ) :
+        BaseViewHolder(
+            itemMainBinding.root
+        ),
         ItemTouchHelperViewHolder
 
     class FooterViewHolder(
         val itemFooterBinding:
             ItemRecyclerFooterBinding
-    ) : BaseViewHolder(
-        itemFooterBinding.root
-    )
+    ) :
+        BaseViewHolder(
+            itemFooterBinding.root
+        )
 
     override fun onItemMove(
         fromPosition: Int,
         toPosition: Int
     ): Boolean {
 
-        mainViewModel.swapServer(
-            fromPosition,
-            toPosition
-        )
+        mainViewModel
+            .swapServer(
+                fromPosition,
+                toPosition
+            )
 
         if (
-            fromPosition < data.size &&
-            toPosition < data.size
+            fromPosition <
+            data.size &&
+            toPosition <
+            data.size
         ) {
 
             Collections.swap(
