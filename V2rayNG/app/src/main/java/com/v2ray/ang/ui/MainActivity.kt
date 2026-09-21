@@ -328,6 +328,7 @@ class MainActivity :
                 R.string.title_server
             )
         )
+        setupToolbarGlassActions()
 
         groupPagerAdapter =
             GroupPagerAdapter(
