@@ -10,7 +10,6 @@ import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.color.MaterialColors
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.contracts.MainAdapterListener
@@ -236,17 +235,6 @@ class MainRecyclerAdapter(
 
             /*
              * MojAzad selected server appearance.
-             *
-             * Selected:
-             * - existing indicator remains visible
-             * - subtle Primary-tinted background
-             * - thin Primary border
-             *
-             * Unselected:
-             * - original drawable is restored
-             *
-             * Restoring the original drawable is important
-             * because RecyclerView reuses ViewHolders.
              */
             bindSelectedServerAppearance(
                 holder =
@@ -397,10 +385,15 @@ class MainRecyclerAdapter(
     }
 
     /**
-     * MojAzad selected server card appearance.
+     * MojAzad selected server appearance.
      *
-     * Uses Material theme colors directly so the
-     * appearance follows both Light and Dark mode.
+     * Selected server:
+     * - keeps the left indicator
+     * - gets a subtle themed background
+     * - gets a thin primary-colored border
+     *
+     * Unselected servers restore the original drawable
+     * so RecyclerView reuse cannot leak selected styling.
      */
     private fun bindSelectedServerAppearance(
         holder: MainViewHolder,
@@ -419,12 +412,6 @@ class MainRecyclerAdapter(
                     0
                 )
 
-            /*
-             * Restore original server-card background.
-             *
-             * This also prevents a recycled selected
-             * ViewHolder from tinting another server.
-             */
             binding.infoContainer
                 .setBackgroundResource(
                     R.drawable.bg_mojazad_server_item
@@ -436,26 +423,33 @@ class MainRecyclerAdapter(
         val context =
             binding.root.context
 
+        /*
+         * Use MojAzad's own theme resources instead of
+         * Material R.attr references.
+         *
+         * These resources automatically follow the
+         * current resource configuration.
+         */
         val primaryColor =
-            MaterialColors.getColor(
-                binding.infoContainer,
-                com.google.android.material.R.attr.colorPrimary
+            ContextCompat.getColor(
+                context,
+                R.color.md_theme_primary
             )
 
-        val surfaceColor =
-            MaterialColors.getColor(
-                binding.infoContainer,
-                com.google.android.material.R.attr.colorSurface
+        val backgroundColor =
+            ContextCompat.getColor(
+                context,
+                R.color.md_theme_background
             )
 
         val primaryContainerColor =
-            MaterialColors.getColor(
-                binding.infoContainer,
-                com.google.android.material.R.attr.colorPrimaryContainer
+            ContextCompat.getColor(
+                context,
+                R.color.md_theme_primaryContainer
             )
 
         /*
-         * Keep the existing left indicator.
+         * Keep the existing selected indicator.
          */
         binding.layoutIndicator
             .setBackgroundColor(
@@ -463,13 +457,11 @@ class MainRecyclerAdapter(
             )
 
         /*
-         * Blend a small amount of PrimaryContainer into
-         * Surface. The effect remains subtle in both
-         * Light and Dark mode.
+         * Give the selected card a subtle tint.
          */
         val selectedBackgroundColor =
             ColorUtils.blendARGB(
-                surfaceColor,
+                backgroundColor,
                 primaryContainerColor,
                 SELECTED_BACKGROUND_BLEND
             )
