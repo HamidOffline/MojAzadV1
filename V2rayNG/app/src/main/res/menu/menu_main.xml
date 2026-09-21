@@ -3,6 +3,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <!-- Filter / Search -->
     <item
         android:id="@+id/search_view"
         android:icon="@drawable/ic_outline_filter_alt_24"
@@ -10,12 +11,14 @@
         app:actionViewClass="androidx.appcompat.widget.SearchView"
         app:showAsAction="always|collapseActionView" />
 
+    <!-- Light / Dark mode -->
     <item
         android:id="@+id/theme_toggle"
         android:icon="@drawable/ic_dark_mode_24"
         android:title="تغییر حالت نمایش"
         app:showAsAction="always" />
 
+    <!-- Add configuration -->
     <item
         android:id="@+id/add_config"
         android:icon="@drawable/ic_add_24dp"
@@ -92,6 +95,8 @@
         </menu>
 
     </item>
+
+    <!-- Overflow menu -->
 
     <item
         android:id="@+id/service_restart"
