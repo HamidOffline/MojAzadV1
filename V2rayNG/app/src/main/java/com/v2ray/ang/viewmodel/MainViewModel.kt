@@ -36,7 +36,71 @@ import java.util.regex.PatternSyntaxException
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private var serverList = mutableListOf<String>()
+    companion object {
+
+        /*
+         * =====================================================
+         * MojAzad Initial Best Server Selection
+         * =====================================================
+         *
+         * Quality information is written by CoreTestService.
+         *
+         * Stored format:
+         *
+         * v1|median|jitter|successCount|attemptCount|samples
+         */
+        private const val QUALITY_RESULT_KEY_PREFIX =
+            "mojazad_initial_quality_"
+
+        private const val QUALITY_RESULT_VERSION =
+            "v1"
+
+        /*
+         * Jitter matters because a server with:
+         *
+         * 100 / 105 / 110
+         *
+         * is generally a better initial choice than:
+         *
+         * 70 / 220 / 350
+         *
+         * even if the second server once produced
+         * a lower raw Ping.
+         */
+        private const val QUALITY_JITTER_WEIGHT =
+            2L
+
+        /*
+         * Every failed Ping attempt adds this penalty.
+         *
+         * The server is NOT deleted.
+         *
+         * Example:
+         *
+         * 3/3 success = no failure penalty
+         * 2/3 success = +250
+         * 1/3 success = +500
+         */
+        private const val QUALITY_FAILURE_PENALTY =
+            250L
+
+        /*
+         * Servers with very high latency remain valid,
+         * but receive an additional penalty.
+         */
+        private const val QUALITY_HIGH_PING_THRESHOLD =
+            400L
+
+        /*
+         * Additional penalty for every millisecond above
+         * QUALITY_HIGH_PING_THRESHOLD.
+         */
+        private const val QUALITY_HIGH_PING_WEIGHT =
+            1L
+    }
+
+    private var serverList =
+        mutableListOf<String>()
 
     var subscriptionId: String =
         MmkvManager.decodeSettingsString(
@@ -44,7 +108,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ""
         ).orEmpty()
 
-    var keywordFilter = ""
+    var keywordFilter =
+        ""
 
     val serversCache =
         mutableListOf<ServersCache>()
@@ -67,12 +132,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * MainActivity listens to this.
      *
      * true means:
-     * Ping finished successfully,
-     * the fastest valid server was selected,
-     * and MojAzad can now connect.
+     *
+     * - Ping/quality test finished successfully
+     * - best initial server was selected
+     * - MojAzad can now connect
      */
     val autoConnectBestServerAction by lazy {
-        MutableLiveData<Boolean>(false)
+        MutableLiveData<Boolean>(
+            false
+        )
     }
 
     /*
@@ -83,6 +151,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     private var connectBestServerAfterPing =
         false
+
+    /**
+     * One server's quality result for the current
+     * Real Ping batch.
+     */
+    private data class ServerQualityResult(
+        val guid: String,
+        val medianMillis: Long,
+        val jitterMillis: Long,
+        val successCount: Int,
+        val attemptCount: Int,
+        val samples: List<Long>
+    ) {
+
+        val failureCount: Int
+            get() =
+                (
+                    attemptCount -
+                        successCount
+                    )
+                    .coerceAtLeast(
+                        0
+                    )
+
+        val isUsable: Boolean
+            get() =
+                medianMillis > 0L &&
+                    successCount > 0 &&
+                    attemptCount > 0
+    }
+
+    /**
+     * Candidate used for final initial-server selection.
+     *
+     * Lower score is better.
+     */
+    private data class ServerQualityCandidate(
+        val quality: ServerQualityResult,
+        val score: Long
+    )
 
     /**
      * Start listening for service broadcasts.
@@ -135,7 +243,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun reloadServerList() {
 
         serverList =
-            if (subscriptionId.isEmpty()) {
+            if (
+                subscriptionId.isEmpty()
+            ) {
 
                 MmkvManager
                     .decodeAllServerList()
@@ -174,7 +284,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 guid
             )
 
-        if (index >= 0) {
+        if (
+            index >= 0
+        ) {
 
             serversCache.removeAt(
                 index
@@ -190,7 +302,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         toPosition: Int
     ) {
 
-        if (subscriptionId.isEmpty()) {
+        if (
+            subscriptionId.isEmpty()
+        ) {
+
             return
         }
 
@@ -226,7 +341,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val searchRegex =
             try {
 
-                if (kw.isNotEmpty()) {
+                if (
+                    kw.isNotEmpty()
+                ) {
 
                     Regex(
                         kw,
@@ -240,12 +357,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     null
                 }
 
-            } catch (e: PatternSyntaxException) {
+            } catch (
+                e: PatternSyntaxException
+            ) {
 
                 null
             }
 
-        for (guid in serverList) {
+        for (
+            guid in serverList
+        ) {
 
             val profile =
                 MmkvManager
@@ -254,7 +375,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     ?: continue
 
-            if (kw.isEmpty()) {
+            if (
+                kw.isEmpty()
+            ) {
 
                 serversCache.add(
                     ServersCache(
@@ -313,9 +436,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateConfigViaSubAll():
         SubscriptionUpdateResult {
 
-        if (subscriptionId.isEmpty()) {
+        return if (
+            subscriptionId.isEmpty()
+        ) {
 
-            return AngConfigManager
+            AngConfigManager
                 .updateConfigViaSubAll()
 
         } else {
@@ -327,7 +452,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     ?: return SubscriptionUpdateResult()
 
-            return AngConfigManager
+            AngConfigManager
                 .updateConfigViaSub(
                     SubscriptionCache(
                         subscriptionId,
@@ -340,7 +465,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Export servers.
      */
-    fun exportAllServer(): Int {
+    fun exportAllServer():
+        Int {
 
         val serverListCopy =
             if (
@@ -375,8 +501,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * autoConnectAfterFinish = true:
      * MojAzad automatic startup Ping.
      *
-     * After finishing:
-     * Sort -> Select fastest -> Auto-connect.
+     * Automatic flow:
+     *
+     * Test ->
+     * calculate quality ->
+     * sort ->
+     * select best-quality server ->
+     * connect once.
      */
     fun testAllRealPing(
         autoConnectAfterFinish: Boolean = false
@@ -401,7 +532,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             autoConnectAfterFinish
 
         /*
-         * Clear old Ping results.
+         * Clear old visible Ping results.
+         *
+         * CoreTestService separately clears the quality
+         * result for every server before the new batch.
          */
         MmkvManager
             .clearAllTestDelayResults(
@@ -419,7 +553,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             Dispatchers.Default
         ) {
 
-            if (serversCache.isEmpty()) {
+            if (
+                serversCache.isEmpty()
+            ) {
 
                 connectBestServerAfterPing =
                     false
@@ -428,14 +564,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             /*
-             * MojAzad:
-             *
-             * Always send the exact currently-loaded
+             * Always send the exact currently loaded
              * server GUID list directly to CoreTestService.
-             *
-             * This fixes first activation where the servers
-             * have just been imported and the test service
-             * could otherwise try reading its own server list.
              */
             MessageUtil.sendMsg2TestService(
                 getApplication(),
@@ -475,7 +605,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         id: String
     ) {
 
-        if (subscriptionId != id) {
+        if (
+            subscriptionId !=
+            id
+        ) {
 
             subscriptionId =
                 id
@@ -527,7 +660,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             groups.add(
                 GroupMapItem(
-                    id = "",
+                    id =
+                        "",
+
                     remarks =
                         context.getString(
                             R.string.filter_config_all
@@ -564,7 +699,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 index,
                 item ->
 
-                if (item.guid == guid) {
+                if (
+                    item.guid ==
+                    guid
+                ) {
+
                     return index
                 }
             }
@@ -575,7 +714,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Remove duplicate servers.
      */
-    fun removeDuplicateServer(): Int {
+    fun removeDuplicateServer():
+        Int {
 
         val serversCacheCopy =
             serversCache
@@ -606,7 +746,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         index2,
                         sc2 ->
 
-                        if (index2 > index) {
+                        if (
+                            index2 >
+                            index
+                        ) {
 
                             val profile2 =
                                 sc2.profile
@@ -620,7 +763,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
 
                             if (
-                                profile == profile2 &&
+                                profile ==
+                                profile2 &&
                                 !deleteServer.contains(
                                     sc2.guid
                                 )
@@ -634,7 +778,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
             }
 
-        for (item in deleteServer) {
+        for (
+            item in deleteServer
+        ) {
 
             MmkvManager.removeServer(
                 item
@@ -647,7 +793,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Remove all servers.
      */
-    fun removeAllServer(): Int {
+    fun removeAllServer():
+        Int {
 
         return if (
             subscriptionId.isEmpty() &&
@@ -662,7 +809,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val serversCopy =
                 serversCache.toList()
 
-            for (item in serversCopy) {
+            for (
+                item in serversCopy
+            ) {
 
                 MmkvManager.removeServer(
                     item.guid
@@ -678,7 +827,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Remove invalid servers.
      */
-    fun removeInvalidServer(): Int {
+    fun removeInvalidServer():
+        Int {
 
         var count =
             0
@@ -699,7 +849,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val serversCopy =
                 serversCache.toList()
 
-            for (item in serversCopy) {
+            for (
+                item in serversCopy
+            ) {
 
                 count +=
                     MmkvManager
@@ -713,11 +865,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Sort servers by Ping.
+     * Sort servers by their displayed Ping.
+     *
+     * RealPingWorkerService now stores the median Ping,
+     * so sorting is already more resistant to spikes
+     * than the old single-sample behavior.
      */
     fun sortByTestResults() {
 
-        if (subscriptionId.isEmpty()) {
+        if (
+            subscriptionId.isEmpty()
+        ) {
 
             MmkvManager
                 .decodeSubsList()
@@ -771,9 +929,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 serverDelays.add(
                     ServerDelay(
                         key,
-                        if (delay <= 0L) {
+
+                        if (
+                            delay <=
+                            0L
+                        ) {
+
                             999999L
+
                         } else {
+
                             delay
                         }
                     )
@@ -797,44 +962,352 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    /**
-     * Find the fastest successfully-tested server.
-     *
-     * Only positive Ping values are valid.
-     *
-     * 0 = not tested
-     * negative = failed
+    /*
+     * =========================================================
+     * MojAzad quality-based initial server selection
+     * =========================================================
      */
-    private fun findBestTestedServer():
+
+    /**
+     * Read the quality result written by CoreTestService.
+     */
+    private fun readServerQualityResult(
+        guid: String
+    ): ServerQualityResult? {
+
+        val encoded =
+            MmkvManager
+                .decodeSettingsString(
+                    qualityResultKey(
+                        guid
+                    ),
+                    ""
+                )
+                .orEmpty()
+                .trim()
+
+        if (
+            encoded.isBlank()
+        ) {
+
+            return null
+        }
+
+        val parts =
+            encoded.split(
+                '|',
+                limit = 6
+            )
+
+        if (
+            parts.size <
+            5
+        ) {
+
+            return null
+        }
+
+        if (
+            parts[0] !=
+            QUALITY_RESULT_VERSION
+        ) {
+
+            return null
+        }
+
+        val median =
+            parts
+                .getOrNull(
+                    1
+                )
+                ?.toLongOrNull()
+                ?: return null
+
+        val jitter =
+            parts
+                .getOrNull(
+                    2
+                )
+                ?.toLongOrNull()
+                ?: 0L
+
+        val successCount =
+            parts
+                .getOrNull(
+                    3
+                )
+                ?.toIntOrNull()
+                ?: 0
+
+        val attemptCount =
+            parts
+                .getOrNull(
+                    4
+                )
+                ?.toIntOrNull()
+                ?: 0
+
+        val samples =
+            parts
+                .getOrNull(
+                    5
+                )
+                .orEmpty()
+                .split(
+                    ','
+                )
+                .mapNotNull {
+                    it.toLongOrNull()
+                }
+                .filter {
+                    it > 0L
+                }
+
+        return ServerQualityResult(
+            guid =
+                guid,
+
+            medianMillis =
+                median,
+
+            jitterMillis =
+                jitter.coerceAtLeast(
+                    0L
+                ),
+
+            successCount =
+                successCount.coerceAtLeast(
+                    0
+                ),
+
+            attemptCount =
+                attemptCount.coerceAtLeast(
+                    0
+                ),
+
+            samples =
+                samples
+        )
+    }
+
+    /**
+     * Generate the MMKV quality key used by
+     * CoreTestService.
+     */
+    private fun qualityResultKey(
+        guid: String
+    ): String {
+
+        return QUALITY_RESULT_KEY_PREFIX +
+            guid
+    }
+
+    /**
+     * Calculate final quality score.
+     *
+     * Lower = better.
+     *
+     * Score components:
+     *
+     * 1. Median Ping
+     * 2. Jitter penalty
+     * 3. Failed-attempt penalty
+     * 4. Additional high-latency penalty
+     */
+    private fun calculateQualityScore(
+        quality: ServerQualityResult
+    ): Long {
+
+        val median =
+            quality
+                .medianMillis
+                .coerceAtLeast(
+                    1L
+                )
+
+        val jitterPenalty =
+            quality
+                .jitterMillis
+                .coerceAtLeast(
+                    0L
+                ) *
+                QUALITY_JITTER_WEIGHT
+
+        val failurePenalty =
+            quality
+                .failureCount
+                .toLong() *
+                QUALITY_FAILURE_PENALTY
+
+        val highPingPenalty =
+            if (
+                median >
+                QUALITY_HIGH_PING_THRESHOLD
+            ) {
+
+                (
+                    median -
+                        QUALITY_HIGH_PING_THRESHOLD
+                    ) *
+                    QUALITY_HIGH_PING_WEIGHT
+
+            } else {
+
+                0L
+            }
+
+        return median +
+            jitterPenalty +
+            failurePenalty +
+            highPingPenalty
+    }
+
+    /**
+     * Fallback for compatibility.
+     *
+     * If quality data is unexpectedly unavailable,
+     * MojAzad can still use the normal positive Ping
+     * instead of failing to connect completely.
+     */
+    private fun buildFallbackQualityResult(
+        guid: String
+    ): ServerQualityResult? {
+
+        val delay =
+            MmkvManager
+                .decodeServerAffiliationInfo(
+                    guid
+                )
+                ?.testDelayMillis
+                ?: 0L
+
+        if (
+            delay <=
+            0L
+        ) {
+
+            return null
+        }
+
+        return ServerQualityResult(
+            guid =
+                guid,
+
+            medianMillis =
+                delay,
+
+            jitterMillis =
+                0L,
+
+            successCount =
+                1,
+
+            attemptCount =
+                1,
+
+            samples =
+                listOf(
+                    delay
+                )
+        )
+    }
+
+    /**
+     * Find the best server from the current test batch.
+     *
+     * Important behavior:
+     *
+     * - a failed sample does NOT delete a server
+     * - a server with 2/3 success can still be selected
+     * - 3/3 stable servers receive an advantage
+     * - one lucky low Ping is not enough to win
+     * - this selection happens before connection
+     * - it does not continuously switch servers afterward
+     */
+    private fun findBestQualityServer():
         String? {
 
-        return serversCache
-            .mapNotNull { server ->
+        val candidates =
+            serversCache
+                .mapNotNull { server ->
 
-                val delay =
-                    MmkvManager
-                        .decodeServerAffiliationInfo(
+                    val quality =
+                        readServerQualityResult(
                             server.guid
                         )
-                        ?.testDelayMillis
-                        ?: 0L
+                            ?: buildFallbackQualityResult(
+                                server.guid
+                            )
+                            ?: return@mapNotNull null
 
-                if (delay > 0L) {
+                    if (
+                        !quality.isUsable
+                    ) {
 
-                    Pair(
-                        server.guid,
-                        delay
+                        return@mapNotNull null
+                    }
+
+                    ServerQualityCandidate(
+                        quality =
+                            quality,
+
+                        score =
+                            calculateQualityScore(
+                                quality
+                            )
                     )
-
-                } else {
-
-                    null
                 }
-            }
-            .minByOrNull {
-                it.second
-            }
-            ?.first
+
+        if (
+            candidates.isEmpty()
+        ) {
+
+            return null
+        }
+
+        /*
+         * Final ordering:
+         *
+         * 1. quality score
+         * 2. more successful attempts
+         * 3. lower jitter
+         * 4. lower median Ping
+         *
+         * This makes ties deterministic.
+         */
+        val best =
+            candidates
+                .minWithOrNull(
+                    compareBy<ServerQualityCandidate> {
+                        it.score
+                    }
+                        .thenByDescending {
+                            it.quality.successCount
+                        }
+                        .thenBy {
+                            it.quality.jitterMillis
+                        }
+                        .thenBy {
+                            it.quality.medianMillis
+                        }
+                )
+                ?: return null
+
+        LogUtil.i(
+            AppConfig.TAG,
+            "MojAzad best initial server: " +
+                "guid=${best.quality.guid}, " +
+                "score=${best.score}, " +
+                "median=${best.quality.medianMillis}ms, " +
+                "jitter=${best.quality.jitterMillis}ms, " +
+                "success=${best.quality.successCount}/" +
+                "${best.quality.attemptCount}, " +
+                "samples=${best.quality.samples}"
+        )
+
+        return best
+            .quality
+            .guid
     }
 
     /**
@@ -856,9 +1329,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 false
 
             /*
-             * Keep normal v2rayNG behavior.
+             * IMPORTANT:
+             *
+             * Automatic startup / activation / Auto Failover
+             * quality tests must NEVER remove a server merely
+             * because its current Ping attempt failed.
+             *
+             * The old Auto Remove Invalid setting is therefore
+             * respected only for manual Real Ping.
              */
             if (
+                !shouldAutoConnect &&
                 MmkvManager.decodeSettingsBool(
                     AppConfig.PREF_AUTO_REMOVE_INVALID_AFTER_TEST
                 )
@@ -870,8 +1351,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             /*
              * Automatic MojAzad test always sorts.
              *
-             * Manual Ping only sorts if the normal
-             * Auto Sort setting is enabled.
+             * Manual Ping only sorts if normal Auto Sort
+             * is enabled.
              */
             if (
                 shouldAutoConnect ||
@@ -884,12 +1365,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             /*
-             * Find fastest valid server.
+             * Automatic connection now selects the
+             * best-quality server instead of merely
+             * the lowest single Ping.
              */
             val bestServerGuid =
-                if (shouldAutoConnect) {
+                if (
+                    shouldAutoConnect
+                ) {
 
-                    findBestTestedServer()
+                    findBestQualityServer()
 
                 } else {
 
@@ -897,10 +1382,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
             /*
-             * Select fastest server.
+             * Select winner once before connection.
              */
             if (
-                !bestServerGuid.isNullOrBlank()
+                !bestServerGuid
+                    .isNullOrBlank()
             ) {
 
                 MmkvManager.setSelectServer(
@@ -918,7 +1404,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 reloadServerList()
 
                 /*
-                 * Tell MainActivity to connect.
+                 * Tell MainActivity to connect once.
                  */
                 if (
                     !bestServerGuid
@@ -971,6 +1457,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             keyword ==
             keywordFilter
         ) {
+
             return
         }
 
@@ -994,6 +1481,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             selectedGuid
                 .isNullOrEmpty()
         ) {
+
             return null
         }
 
@@ -1011,7 +1499,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Broadcast receiver.
      */
     private val mMsgReceiver =
-        object : BroadcastReceiver() {
+        object :
+            BroadcastReceiver() {
 
             override fun onReceive(
                 ctx: Context?,
@@ -1133,12 +1622,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 )
 
                         /*
-                         * 0 = Ping batch completed successfully.
+                         * 0 = Ping/quality batch completed
+                         * successfully.
                          *
                          * Cancelled/failed batches must not
                          * automatically connect.
                          */
-                        if (content == "0") {
+                        if (
+                            content ==
+                            "0"
+                        ) {
 
                             onTestsFinished()
                         }
