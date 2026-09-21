@@ -34,13 +34,13 @@ class MainRecyclerAdapter(
         private const val VIEW_TYPE_FOOTER = 2
 
         /*
-         * MojAzad V3 Server Health thresholds.
+         * MojAzad V3 Server Health
          *
          * 1 - 200 ms   = Excellent
          * 201 - 400 ms = Good
          * 401+ ms      = Weak
-         * Negative     = Offline / Failed
-         * 0 / no test  = Hidden
+         * Negative     = Offline
+         * 0            = Not tested
          */
         private const val HEALTH_EXCELLENT_MAX = 200L
         private const val HEALTH_GOOD_MAX = 400L
@@ -66,10 +66,7 @@ class MainRecyclerAdapter(
     ) {
         data = newData?.toMutableList() ?: mutableListOf()
 
-        if (
-            position >= 0 &&
-            position in data.indices
-        ) {
+        if (position >= 0 && position in data.indices) {
             notifyItemChanged(position)
         } else {
             notifyDataSetChanged()
@@ -112,7 +109,7 @@ class MainRecyclerAdapter(
                 getProtocolDescription(profile)
 
             /*
-             * Ping result
+             * Ping
              */
             val aff =
                 MmkvManager.decodeServerAffiliationInfo(
@@ -155,12 +152,9 @@ class MainRecyclerAdapter(
             )
 
             /*
-             * Selected server indicator
+             * Selected server
              */
-            if (
-                guid ==
-                MmkvManager.getSelectServer()
-            ) {
+            if (guid == MmkvManager.getSelectServer()) {
 
                 holder.itemMainBinding.layoutIndicator
                     .setBackgroundResource(
@@ -176,7 +170,7 @@ class MainRecyclerAdapter(
             }
 
             /*
-             * Subscription remarks
+             * Subscription
              */
             val subRemarks =
                 getSubscriptionRemarks(
@@ -194,7 +188,7 @@ class MainRecyclerAdapter(
                 }
 
             /*
-             * Layout actions
+             * Actions
              */
             if (doubleColumnDisplay) {
 
@@ -279,8 +273,12 @@ class MainRecyclerAdapter(
     /*
      * MojAzad V3
      *
-     * Displays a compact colored health icon
-     * beside the server ping.
+     * Health icon:
+     *
+     * Excellent = Green check
+     * Good      = Blue info
+     * Weak      = Orange warning
+     * Offline   = Red cross
      */
     private fun bindServerHealth(
         holder: MainViewHolder,
@@ -291,7 +289,7 @@ class MainRecyclerAdapter(
             holder.itemMainBinding.ivServerHealth
 
         /*
-         * No ping test has been performed yet.
+         * Server has not been tested yet.
          */
         if (delay == 0L) {
 
@@ -307,82 +305,92 @@ class MainRecyclerAdapter(
         healthIcon.visibility =
             View.VISIBLE
 
-        val healthColor: Int
-        val healthDescription: String
-
         when {
 
             /*
-             * Failed ping / unreachable server.
+             * Offline
              */
             delay < 0L -> {
 
-                healthColor =
-                    Color.parseColor(
-                        HEALTH_COLOR_OFFLINE
+                healthIcon.setImageResource(
+                    R.drawable.ic_health_offline
+                )
+
+                healthIcon.imageTintList =
+                    ColorStateList.valueOf(
+                        Color.parseColor(
+                            HEALTH_COLOR_OFFLINE
+                        )
                     )
 
-                healthDescription =
-                    "Offline"
+                healthIcon.contentDescription =
+                    "Server health: Offline"
             }
 
             /*
-             * Excellent server.
+             * Excellent
              */
             delay <= HEALTH_EXCELLENT_MAX -> {
 
-                healthColor =
-                    Color.parseColor(
-                        HEALTH_COLOR_EXCELLENT
+                healthIcon.setImageResource(
+                    R.drawable.ic_health_excellent
+                )
+
+                healthIcon.imageTintList =
+                    ColorStateList.valueOf(
+                        Color.parseColor(
+                            HEALTH_COLOR_EXCELLENT
+                        )
                     )
 
-                healthDescription =
-                    "Excellent"
+                healthIcon.contentDescription =
+                    "Server health: Excellent"
             }
 
             /*
-             * Good server.
+             * Good
              */
             delay <= HEALTH_GOOD_MAX -> {
 
-                healthColor =
-                    Color.parseColor(
-                        HEALTH_COLOR_GOOD
+                healthIcon.setImageResource(
+                    R.drawable.ic_health_good
+                )
+
+                healthIcon.imageTintList =
+                    ColorStateList.valueOf(
+                        Color.parseColor(
+                            HEALTH_COLOR_GOOD
+                        )
                     )
 
-                healthDescription =
-                    "Good"
+                healthIcon.contentDescription =
+                    "Server health: Good"
             }
 
             /*
-             * High latency but server is reachable.
+             * Weak
              */
             else -> {
 
-                healthColor =
-                    Color.parseColor(
-                        HEALTH_COLOR_WEAK
+                healthIcon.setImageResource(
+                    R.drawable.ic_health_weak
+                )
+
+                healthIcon.imageTintList =
+                    ColorStateList.valueOf(
+                        Color.parseColor(
+                            HEALTH_COLOR_WEAK
+                        )
                     )
 
-                healthDescription =
-                    "Weak"
+                healthIcon.contentDescription =
+                    "Server health: Weak"
             }
         }
-
-        healthIcon.imageTintList =
-            ColorStateList.valueOf(
-                healthColor
-            )
-
-        healthIcon.contentDescription =
-            "Server health: $healthDescription"
     }
 
     /**
-     * Gets the server address information.
-     *
-     * @param profile The server configuration.
-     * @return Formatted address string.
+     * Gets server address.
      */
     private fun getAddress(
         profile: ProfileItem
@@ -396,20 +404,14 @@ class MainRecyclerAdapter(
     }
 
     /**
-     * Gets the subscription remarks information.
-     *
-     * @param profile The server configuration.
-     * @return Subscription remarks string,
-     * or empty string if none.
+     * Gets subscription remarks.
      */
     private fun getSubscriptionRemarks(
         profile: ProfileItem
     ): String {
 
         val subRemarks =
-            if (
-                mainViewModel.subscriptionId.isEmpty()
-            ) {
+            if (mainViewModel.subscriptionId.isEmpty()) {
 
                 MmkvManager
                     .decodeSubscription(
@@ -431,9 +433,7 @@ class MainRecyclerAdapter(
         profile: ProfileItem
     ): String {
 
-        if (
-            profile.configType.isComplexType()
-        ) {
+        if (profile.configType.isComplexType()) {
             return profile.configType.name
         }
 
@@ -445,8 +445,7 @@ class MainRecyclerAdapter(
         )
 
         /*
-         * Transport:
-         * hide TCP or blank.
+         * Transport
          */
         profile.network?.let { net ->
 
@@ -465,8 +464,7 @@ class MainRecyclerAdapter(
         }
 
         /*
-         * Security:
-         * hide blank or normal TLS.
+         * Security
          */
         profile.security?.let { sec ->
 
@@ -578,9 +576,7 @@ class MainRecyclerAdapter(
         position: Int
     ): Int {
 
-        return if (
-            position == data.size
-        ) {
+        return if (position == data.size) {
 
             VIEW_TYPE_FOOTER
 
