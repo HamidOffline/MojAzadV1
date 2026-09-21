@@ -43,7 +43,31 @@ object NotificationManager {
      * =========================================================
      * MojAzad V3 Traffic Dashboard
      * =========================================================
+     *
+     * These MMKV keys are intentionally private to this class.
+     *
+     * The VPN service and MainActivity can run in different
+     * Android processes, so keeping traffic only in static
+     * variables is not enough.
+     *
+     * We mirror the current traffic snapshot into MMKV and
+     * MainActivity reads the same shared values.
      */
+
+    private const val TRAFFIC_KEY_UPLOAD_BYTES =
+        "mojazad_v3_traffic_upload_bytes"
+
+    private const val TRAFFIC_KEY_DOWNLOAD_BYTES =
+        "mojazad_v3_traffic_download_bytes"
+
+    private const val TRAFFIC_KEY_UPLOAD_SPEED =
+        "mojazad_v3_traffic_upload_speed"
+
+    private const val TRAFFIC_KEY_DOWNLOAD_SPEED =
+        "mojazad_v3_traffic_download_speed"
+
+    private const val TRAFFIC_KEY_UPDATED_AT =
+        "mojazad_v3_traffic_updated_at"
 
     data class TrafficSnapshot(
         val uploadBytes: Long,
@@ -179,13 +203,6 @@ object NotificationManager {
             PendingIntent.FLAG_IMMUTABLE or
                 PendingIntent.FLAG_UPDATE_CURRENT
 
-        /*
-         * Avoid MainActivity::class.java.
-         *
-         * Some CI builds previously produced
-         * KClass.java errors, so use Android's
-         * explicit class name instead.
-         */
         val startMainIntent =
             Intent().apply {
 
@@ -319,7 +336,8 @@ object NotificationManager {
     }
 
     /**
-     * Cancels notification and traffic collector.
+     * Cancels notification and stops
+     * the traffic collector.
      */
     fun cancelNotification() {
 
@@ -348,6 +366,8 @@ object NotificationManager {
 
         currentProxyDownlinkSpeed =
             0L
+
+        persistTrafficSnapshot()
     }
 
     /**
@@ -372,6 +392,11 @@ object NotificationManager {
                 currentProxyDownlinkSpeed =
                     0L
 
+                trafficUpdatedAt =
+                    System.currentTimeMillis()
+
+                persistTrafficSnapshot()
+
                 if (
                     MmkvManager.decodeSettingsBool(
                         AppConfig.PREF_SPEED_ENABLED
@@ -394,26 +419,45 @@ object NotificationManager {
      */
 
     /**
-     * Returns cached session traffic without
-     * querying Core again.
+     * Reads traffic through MMKV instead of relying
+     * only on this process's static variables.
      *
-     * This is important because Core traffic
-     * counters are reset by the traffic query.
+     * This lets MainActivity see traffic produced
+     * inside the VPN service process.
      */
     fun getTrafficSnapshot():
         TrafficSnapshot {
 
         return TrafficSnapshot(
             uploadBytes =
-                sessionProxyUplink,
+                readSharedLong(
+                    TRAFFIC_KEY_UPLOAD_BYTES,
+                    sessionProxyUplink
+                ),
+
             downloadBytes =
-                sessionProxyDownlink,
+                readSharedLong(
+                    TRAFFIC_KEY_DOWNLOAD_BYTES,
+                    sessionProxyDownlink
+                ),
+
             uploadSpeedBytesPerSecond =
-                currentProxyUplinkSpeed,
+                readSharedLong(
+                    TRAFFIC_KEY_UPLOAD_SPEED,
+                    currentProxyUplinkSpeed
+                ),
+
             downloadSpeedBytesPerSecond =
-                currentProxyDownlinkSpeed,
+                readSharedLong(
+                    TRAFFIC_KEY_DOWNLOAD_SPEED,
+                    currentProxyDownlinkSpeed
+                ),
+
             updatedAt =
-                trafficUpdatedAt
+                readSharedLong(
+                    TRAFFIC_KEY_UPDATED_AT,
+                    trafficUpdatedAt
+                )
         )
     }
 
@@ -437,6 +481,57 @@ object NotificationManager {
 
         trafficUpdatedAt =
             System.currentTimeMillis()
+
+        persistTrafficSnapshot()
+    }
+
+    /**
+     * Writes the traffic snapshot to MMKV.
+     *
+     * Long values are stored as strings so this works
+     * with the existing MmkvManager API without adding
+     * another method or changing another file.
+     */
+    private fun persistTrafficSnapshot() {
+
+        MmkvManager.encodeSettings(
+            TRAFFIC_KEY_UPLOAD_BYTES,
+            sessionProxyUplink.toString()
+        )
+
+        MmkvManager.encodeSettings(
+            TRAFFIC_KEY_DOWNLOAD_BYTES,
+            sessionProxyDownlink.toString()
+        )
+
+        MmkvManager.encodeSettings(
+            TRAFFIC_KEY_UPLOAD_SPEED,
+            currentProxyUplinkSpeed.toString()
+        )
+
+        MmkvManager.encodeSettings(
+            TRAFFIC_KEY_DOWNLOAD_SPEED,
+            currentProxyDownlinkSpeed.toString()
+        )
+
+        MmkvManager.encodeSettings(
+            TRAFFIC_KEY_UPDATED_AT,
+            trafficUpdatedAt.toString()
+        )
+    }
+
+    private fun readSharedLong(
+        key: String,
+        fallback: Long
+    ): Long {
+
+        return MmkvManager
+            .decodeSettingsString(
+                key,
+                fallback.toString()
+            )
+            ?.toLongOrNull()
+            ?: fallback
     }
 
     /*
@@ -622,13 +717,11 @@ object NotificationManager {
      */
 
     /**
-     * Queries Core only once per interval.
+     * Queries Core once per interval.
      *
-     * The Core query returns and resets
-     * outbound counters.
-     *
-     * Therefore each returned value is added
-     * to MojAzad session totals.
+     * Core traffic counters are incremental/reset
+     * after querying, so each result is added to
+     * the current MojAzad session total.
      */
     private fun updateTrafficStatsOnce(
         lastZeroSpeed: Boolean,
@@ -721,18 +814,12 @@ object NotificationManager {
                 }
             }
 
-        /*
-         * Accumulate server-session totals.
-         */
         sessionProxyUplink +=
             proxyUplink
 
         sessionProxyDownlink +=
             proxyDownlink
 
-        /*
-         * Current transfer speed.
-         */
         if (
             sinceLastQueryInSeconds >
             0.0
@@ -764,6 +851,13 @@ object NotificationManager {
         trafficUpdatedAt =
             queryTime
 
+        /*
+         * Critical MojAzad V3 change:
+         *
+         * Share the latest values with MainActivity.
+         */
+        persistTrafficSnapshot()
+
         val proxyTotal =
             proxyUplink +
                 proxyDownlink
@@ -778,10 +872,8 @@ object NotificationManager {
                 0L
 
         /*
-         * Speed notification is optional.
-         *
-         * Dashboard traffic collection is
-         * independent from this setting.
+         * Notification speed text remains controlled
+         * by the user's original preference.
          */
         if (
             showSpeedNotification &&
@@ -840,9 +932,6 @@ object NotificationManager {
      * =========================================================
      */
 
-    /**
-     * Returns currently active v2rayNG Service.
-     */
     private fun getService():
         Service? {
 
