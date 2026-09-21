@@ -44,6 +44,7 @@
             android:textSize="13sp" />
 
         <TextView
+            android:id="@+id/tv_nav_version"
             android:layout_width="wrap_content"
             android:layout_height="22dp"
             android:layout_marginStart="10dp"
@@ -51,7 +52,7 @@
             android:gravity="center"
             android:paddingStart="8dp"
             android:paddingEnd="8dp"
-            android:text="v3.0.1-beta1"
+            android:text="v0.0.0"
             android:textColor="?attr/colorOnPrimaryContainer"
             android:textSize="10sp"
             android:textStyle="bold" />
