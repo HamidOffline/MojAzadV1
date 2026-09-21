@@ -665,12 +665,37 @@ object CoreConfigManager {
     /**
      * Remove speed-test runtime sections when the feature is disabled.
      */
-    private fun applySpeedDisabled(v2rayConfig: V2rayConfig) {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED) != true) {
-            v2rayConfig.stats = null
-            v2rayConfig.policy = null
-        }
-    }
+    private fun applySpeedDisabled(
+    v2rayConfig: V2rayConfig
+) {
+
+    /*
+     * MojAzad V3
+     *
+     * Do NOT disable Xray traffic statistics when
+     * the notification speed option is disabled.
+     *
+     * NotificationManager separately decides whether
+     * speed text should be shown in the Android
+     * notification.
+     *
+     * The MojAzad dashboard always needs:
+     *
+     * stats
+     *
+     * and:
+     *
+     * policy.system.statsOutboundUplink
+     * policy.system.statsOutboundDownlink
+     *
+     * The base runtime templates already contain
+     * these settings, so they must remain enabled.
+     */
+
+    @Suppress("UNUSED_VARIABLE")
+    val keepTrafficStatsEnabled =
+        v2rayConfig
+}
 
     /*
     /**
