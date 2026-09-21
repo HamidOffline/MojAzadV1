@@ -1,4 +1,4 @@
-name: MojAzad ARM64 Debug APK
+name: MojAzad ARM64 Release APK
 
 on:
   workflow_dispatch:
@@ -78,7 +78,28 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Build MojAzad ARM64 Debug APK
+      - name: Restore MojAzad release keystore
+        env:
+          MOJAZAD_KEYSTORE_BASE64: ${{ secrets.MOJAZAD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "${MOJAZAD_KEYSTORE_BASE64}" ]; then
+            echo "ERROR: MOJAZAD_KEYSTORE_BASE64 secret is missing."
+            exit 1
+          fi
+
+          mkdir -p "${{ github.workspace }}/keystore"
+
+          echo "${MOJAZAD_KEYSTORE_BASE64}" | base64 --decode \
+            > "${{ github.workspace }}/keystore/mojazad-release.jks"
+
+          echo "MOJAZAD_KEYSTORE_PATH=${{ github.workspace }}/keystore/mojazad-release.jks" \
+            >> "$GITHUB_ENV"
+
+      - name: Build MojAzad ARM64 Release APK
+        env:
+          MOJAZAD_KEYSTORE_PASSWORD: ${{ secrets.MOJAZAD_KEYSTORE_PASSWORD }}
+          MOJAZAD_KEY_ALIAS: ${{ secrets.MOJAZAD_KEY_ALIAS }}
+          MOJAZAD_KEY_PASSWORD: ${{ secrets.MOJAZAD_KEY_PASSWORD }}
         run: |
           cd "${{ github.workspace }}/V2rayNG"
 
@@ -86,9 +107,9 @@ jobs:
 
           chmod 755 gradlew
 
-          ./gradlew assemblePlaystoreDebug -PABI_FILTERS=arm64-v8a
+          ./gradlew assemblePlaystoreRelease -PABI_FILTERS=arm64-v8a
 
-      - name: Collect MojAzad ARM64 APK
+      - name: Collect MojAzad ARM64 Release APK
         run: |
           mkdir -p "${{ github.workspace }}/mojazad-apk"
 
@@ -103,14 +124,14 @@ jobs:
           APK_COUNT=$(find "${{ github.workspace }}/mojazad-apk" -type f -name "*.apk" | wc -l)
 
           if [ "$APK_COUNT" -eq 0 ]; then
-            echo "ERROR: MojAzad ARM64 APK was not found."
+            echo "ERROR: MojAzad ARM64 Release APK was not found."
             exit 1
           fi
 
-      - name: Upload MojAzad ARM64 APK
+      - name: Upload MojAzad ARM64 Release APK
         uses: actions/upload-artifact@v7
         with:
-          name: MojAzad-ARM64
+          name: MojAzad-ARM64-Release
           path: ${{ github.workspace }}/mojazad-apk/*.apk
           if-no-files-found: error
           retention-days: 7
