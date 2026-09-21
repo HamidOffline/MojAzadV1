@@ -45,37 +45,121 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelectedListener {
+class MainActivity :
+    HelperBaseActivity(),
+    NavigationView.OnNavigationItemSelectedListener {
+
+    companion object {
+
+        /*
+         * MojAzad V3 Auto Failover
+         */
+        private const val AUTO_FAILOVER_PREFS =
+            "mojazad_v3_preferences"
+
+        private const val AUTO_FAILOVER_ENABLED =
+            "auto_failover_enabled"
+
+        /*
+         * Prevent repeated server switching.
+         */
+        private const val AUTO_FAILOVER_COOLDOWN_MS =
+            60_000L
+
+        /*
+         * Wait before confirming that the VPN
+         * really stopped unexpectedly.
+         */
+        private const val AUTO_FAILOVER_FIRST_CHECK_MS =
+            2_500L
+
+        private const val AUTO_FAILOVER_SECOND_CHECK_MS =
+            2_500L
+
+        /*
+         * Safety timeout.
+         */
+        private const val AUTO_FAILOVER_TIMEOUT_MS =
+            45_000L
+    }
 
     private val binding by lazy {
-        ActivityMainBinding.inflate(layoutInflater)
+        ActivityMainBinding.inflate(
+            layoutInflater
+        )
     }
 
     val mainViewModel: MainViewModel by viewModels()
 
-    private lateinit var groupPagerAdapter: GroupPagerAdapter
-    private var tabMediator: TabLayoutMediator? = null
+    private lateinit var groupPagerAdapter:
+        GroupPagerAdapter
+
+    private var tabMediator:
+        TabLayoutMediator? = null
+
+    /*
+     * MojAzad V3 Auto Failover state
+     */
+    private val autoFailoverPreferences by lazy {
+
+        getSharedPreferences(
+            AUTO_FAILOVER_PREFS,
+            MODE_PRIVATE
+        )
+    }
+
+    private var wasVpnRunning =
+        false
+
+    private var userRequestedStop =
+        false
+
+    private var restartInProgress =
+        false
+
+    private var autoFailoverInProgress =
+        false
+
+    private var lastAutoFailoverAt =
+        0L
+
     private val requestVpnPermission =
         registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
+            ActivityResultContracts
+                .StartActivityForResult()
         ) {
-            if (it.resultCode == RESULT_OK) {
+
+            if (
+                it.resultCode ==
+                RESULT_OK
+            ) {
+
                 startV2Ray()
             }
         }
 
     private val requestActivityLauncher =
         registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
+            ActivityResultContracts
+                .StartActivityForResult()
         ) {
+
             if (
-                SettingsChangeManager.consumeRestartService() &&
-                mainViewModel.isRunning.value == true
+                SettingsChangeManager
+                    .consumeRestartService() &&
+                mainViewModel
+                    .isRunning
+                    .value == true
             ) {
+
                 restartV2Ray()
             }
 
-            if (SettingsChangeManager.consumeSetupGroupTab()) {
+            if (
+                SettingsChangeManager
+                    .consumeSetupGroupTab()
+            ) {
+
                 setupGroupTab()
             }
         }
@@ -89,21 +173,28 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
      */
     private val requestSubSettingLauncher =
         registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
+            ActivityResultContracts
+                .StartActivityForResult()
         ) { result ->
 
             val needsSetupGroupTab =
-                SettingsChangeManager.consumeSetupGroupTab()
+                SettingsChangeManager
+                    .consumeSetupGroupTab()
 
             if (
-                SettingsChangeManager.consumeRestartService() &&
-                mainViewModel.isRunning.value == true
+                SettingsChangeManager
+                    .consumeRestartService() &&
+                mainViewModel
+                    .isRunning
+                    .value == true
             ) {
+
                 restartV2Ray()
             }
 
             if (
-                result.resultCode == RESULT_OK
+                result.resultCode ==
+                RESULT_OK
             ) {
 
                 val data =
@@ -112,14 +203,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 val subId =
                     data
                         ?.getStringExtra(
-                            SubSettingActivity.EXTRA_SUB_ID
+                            SubSettingActivity
+                                .EXTRA_SUB_ID
                         )
                         .orEmpty()
 
                 val isNewSubscription =
                     data
                         ?.getBooleanExtra(
-                            SubSettingActivity.EXTRA_IS_NEW_SUB,
+                            SubSettingActivity
+                                .EXTRA_IS_NEW_SUB,
                             false
                         )
                         ?: false
@@ -137,7 +230,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 }
             }
 
-            if (needsSetupGroupTab) {
+            if (
+                needsSetupGroupTab
+            ) {
 
                 setupGroupTab()
 
@@ -181,15 +276,25 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         setupNavigationDrawer()
 
+        /*
+         * MojAzad V3
+         *
+         * Restore Auto Failover switch state.
+         */
+        setupAutoFailoverSwitch()
+
         binding.fab.setOnClickListener {
+
             handleFabAction()
         }
 
         binding.layoutTest.setOnClickListener {
+
             handleLayoutTestClick()
         }
 
         setupGroupTab()
+
         setupViewModel()
 
         val hasValidSubscription =
@@ -215,6 +320,268 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         checkAndRequestPermission(
             PermissionType.POST_NOTIFICATIONS
         ) {
+        }
+    }
+
+    /*
+     * =========================================================
+     * MojAzad V3 Auto Failover
+     * =========================================================
+     */
+
+    private fun setupAutoFailoverSwitch() {
+
+        binding.switchAutoFailover.isChecked =
+            isAutoFailoverEnabled()
+
+        binding.switchAutoFailover
+            .setOnCheckedChangeListener {
+                    _,
+                    isChecked ->
+
+                autoFailoverPreferences
+                    .edit()
+                    .putBoolean(
+                        AUTO_FAILOVER_ENABLED,
+                        isChecked
+                    )
+                    .apply()
+
+                if (
+                    isChecked
+                ) {
+
+                    toast(
+                        "Auto Failover فعال شد"
+                    )
+
+                } else {
+
+                    toast(
+                        "Auto Failover غیرفعال شد"
+                    )
+                }
+            }
+    }
+
+    private fun isAutoFailoverEnabled():
+        Boolean {
+
+        return autoFailoverPreferences
+            .getBoolean(
+                AUTO_FAILOVER_ENABLED,
+                false
+            )
+    }
+
+    /*
+     * Called every time VPN running state changes.
+     *
+     * Important:
+     * - Manual disconnect does NOT trigger failover.
+     * - App restart does NOT trigger failover.
+     * - Service restart does NOT trigger failover.
+     * - Only an unexpected disconnect while VPN
+     *   was previously running can trigger failover.
+     */
+    private fun handleAutoFailoverRunningState(
+        isRunning: Boolean
+    ) {
+
+        if (
+            isRunning
+        ) {
+
+            wasVpnRunning =
+                true
+
+            /*
+             * A successful connection finishes
+             * any pending failover cycle.
+             */
+            autoFailoverInProgress =
+                false
+
+            userRequestedStop =
+                false
+
+            return
+        }
+
+        /*
+         * App just started and VPN was not running.
+         */
+        if (
+            !wasVpnRunning
+        ) {
+
+            return
+        }
+
+        wasVpnRunning =
+            false
+
+        /*
+         * User intentionally pressed Stop.
+         */
+        if (
+            userRequestedStop
+        ) {
+
+            userRequestedStop =
+                false
+
+            return
+        }
+
+        /*
+         * Do not interpret our own controlled
+         * service restart as a connection failure.
+         */
+        if (
+            restartInProgress
+        ) {
+
+            return
+        }
+
+        /*
+         * Feature disabled.
+         */
+        if (
+            !isAutoFailoverEnabled()
+        ) {
+
+            return
+        }
+
+        /*
+         * Already handling another failure.
+         */
+        if (
+            autoFailoverInProgress
+        ) {
+
+            return
+        }
+
+        val now =
+            System.currentTimeMillis()
+
+        /*
+         * Cooldown prevents jumping repeatedly
+         * between servers.
+         */
+        if (
+            now -
+                lastAutoFailoverAt <
+            AUTO_FAILOVER_COOLDOWN_MS
+        ) {
+
+            return
+        }
+
+        startAutoFailover()
+    }
+
+    private fun startAutoFailover() {
+
+        if (
+            !isAutoFailoverEnabled()
+        ) {
+
+            return
+        }
+
+        autoFailoverInProgress =
+            true
+
+        lastAutoFailoverAt =
+            System.currentTimeMillis()
+
+        lifecycleScope.launch {
+
+            /*
+             * First confirmation.
+             *
+             * Short temporary interruptions
+             * should not immediately switch servers.
+             */
+            delay(
+                AUTO_FAILOVER_FIRST_CHECK_MS
+            )
+
+            if (
+                !isAutoFailoverEnabled() ||
+                mainViewModel
+                    .isRunning
+                    .value == true
+            ) {
+
+                autoFailoverInProgress =
+                    false
+
+                return@launch
+            }
+
+            /*
+             * Second confirmation.
+             */
+            delay(
+                AUTO_FAILOVER_SECOND_CHECK_MS
+            )
+
+            if (
+                !isAutoFailoverEnabled() ||
+                mainViewModel
+                    .isRunning
+                    .value == true
+            ) {
+
+                autoFailoverInProgress =
+                    false
+
+                return@launch
+            }
+
+            toast(
+                "در حال انتخاب سرور جایگزین..."
+            )
+
+            /*
+             * Re-use MojAzad's existing tested logic:
+             *
+             * Real Ping All
+             * -> ignore failed / negative ping
+             * -> sort
+             * -> select lowest positive ping
+             * -> emit autoConnectBestServerAction
+             *
+             * Existing observer below will then
+             * start the VPN with the selected server.
+             */
+            mainViewModel
+                .testAllRealPing(
+                    autoConnectAfterFinish = true
+                )
+
+            /*
+             * Safety reset if no usable server
+             * is found or the ping operation fails.
+             */
+            delay(
+                AUTO_FAILOVER_TIMEOUT_MS
+            )
+
+            if (
+                mainViewModel
+                    .isRunning
+                    .value != true
+            ) {
+
+                autoFailoverInProgress =
+                    false
+            }
         }
     }
 
@@ -808,6 +1175,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     false,
                     isRunning
                 )
+
+                /*
+                 * MojAzad V3 Auto Failover.
+                 */
+                handleAutoFailoverRunningState(
+                    isRunning
+                )
             }
 
         mainViewModel
@@ -825,6 +1199,26 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                 mainViewModel
                     .consumeAutoConnectBestServerAction()
+
+                /*
+                 * If the user switched Auto Failover
+                 * off while a failover ping was running,
+                 * do not reconnect automatically from
+                 * that failover operation.
+                 *
+                 * Normal MojAzad startup / subscription
+                 * auto-connect remains unchanged.
+                 */
+                if (
+                    autoFailoverInProgress &&
+                    !isAutoFailoverEnabled()
+                ) {
+
+                    autoFailoverInProgress =
+                        false
+
+                    return@observe
+                }
 
                 if (
                     mainViewModel
@@ -1015,15 +1409,31 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun handleFabAction() {
+
+        val currentlyRunning =
+            mainViewModel
+                .isRunning
+                .value == true
+
+        /*
+         * Tell Auto Failover that this disconnect
+         * was intentionally requested by the user.
+         */
+        if (
+            currentlyRunning
+        ) {
+
+            userRequestedStop =
+                true
+        }
+
         applyRunningState(
             isLoading = true,
             isRunning = false
         )
 
         if (
-            mainViewModel
-                .isRunning
-                .value == true
+            currentlyRunning
         ) {
 
             CoreServiceManager
@@ -1034,6 +1444,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         } else if (
             SettingsManager.isVpnMode()
         ) {
+
+            userRequestedStop =
+                false
 
             val intent =
                 VpnService.prepare(
@@ -1055,6 +1468,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
 
         } else {
+
+            userRequestedStop =
+                false
 
             startV2Ray()
         }
@@ -1116,6 +1532,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     fun restartV2Ray() {
 
+        /*
+         * Prevent Auto Failover from treating our
+         * own restart as a real connection failure.
+         */
+        restartInProgress =
+            true
+
         if (
             mainViewModel
                 .isRunning
@@ -1135,6 +1558,17 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             )
 
             startV2Ray()
+
+            /*
+             * Keep restart guard active briefly
+             * while the service comes back up.
+             */
+            delay(
+                2_000
+            )
+
+            restartInProgress =
+                false
         }
     }
 
@@ -1145,106 +1579,110 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.tvTestState.text =
             content
     }
-    
-private fun applyRunningState(
-    isLoading: Boolean,
-    isRunning: Boolean
-) {
 
-    if (isLoading) {
+    private fun applyRunningState(
+        isLoading: Boolean,
+        isRunning: Boolean
+    ) {
 
-        binding.fab
-            .setImageResource(
-                R.drawable.ic_fab_check
-            )
+        if (
+            isLoading
+        ) {
 
-        binding.fab
-            .backgroundTintList =
-            ColorStateList.valueOf(
-                ContextCompat.getColor(
-                    this,
-                    R.color.md_theme_primary
+            binding.fab
+                .setImageResource(
+                    R.drawable.ic_fab_check
+                )
+
+            binding.fab
+                .backgroundTintList =
+                ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.md_theme_primary
+                    )
+                )
+
+            binding.tvTestState.text =
+                "Connecting"
+
+            binding.fab.contentDescription =
+                "Connecting"
+
+            return
+        }
+
+        if (
+            isRunning
+        ) {
+
+            binding.fab
+                .setImageResource(
+                    R.drawable.ic_stop_24dp
+                )
+
+            binding.fab
+                .backgroundTintList =
+                ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.color_fab_active
+                    )
+                )
+
+            binding.tvTestState.text =
+                "Connected"
+
+            binding.fab
+                .contentDescription =
+                getString(
+                    R.string.action_stop_service
+                )
+
+            setTestState(
+                getString(
+                    R.string.connection_connected
                 )
             )
 
-        binding.tvTestState.text =
-            "Connecting"
+            binding.layoutTest.isFocusable =
+                true
 
-        binding.fab.contentDescription =
-            "Connecting"
+        } else {
 
-        return
+            binding.fab
+                .setImageResource(
+                    R.drawable.ic_play_24dp
+                )
+
+            binding.fab
+                .backgroundTintList =
+                ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.color_fab_inactive
+                    )
+                )
+
+            binding.tvTestState.text =
+                "Connect"
+
+            binding.fab
+                .contentDescription =
+                getString(
+                    R.string.tasker_start_service
+                )
+
+            setTestState(
+                getString(
+                    R.string.connection_not_connected
+                )
+            )
+
+            binding.layoutTest.isFocusable =
+                false
+        }
     }
-
-    if (isRunning) {
-
-        binding.fab
-            .setImageResource(
-                R.drawable.ic_stop_24dp
-            )
-
-        binding.fab
-            .backgroundTintList =
-            ColorStateList.valueOf(
-                ContextCompat.getColor(
-                    this,
-                    R.color.color_fab_active
-                )
-            )
-
-        binding.tvTestState.text =
-            "Connected"
-
-        binding.fab
-            .contentDescription =
-            getString(
-                R.string.action_stop_service
-            )
-
-        setTestState(
-            getString(
-                R.string.connection_connected
-            )
-        )
-
-        binding.layoutTest.isFocusable =
-            true
-
-    } else {
-
-        binding.fab
-            .setImageResource(
-                R.drawable.ic_play_24dp
-            )
-
-        binding.fab
-            .backgroundTintList =
-            ColorStateList.valueOf(
-                ContextCompat.getColor(
-                    this,
-                    R.color.color_fab_inactive
-                )
-            )
-
-        binding.tvTestState.text =
-            "Connect"
-
-        binding.fab
-            .contentDescription =
-            getString(
-                R.string.tasker_start_service
-            )
-
-        setTestState(
-            getString(
-                R.string.connection_not_connected
-            )
-        )
-
-        binding.layoutTest.isFocusable =
-            false
-    }
-}
 
     override fun onResume() {
 
@@ -1281,7 +1719,8 @@ private fun applyRunningState(
             searchView
                 .setOnQueryTextListener(
                     object :
-                        SearchView.OnQueryTextListener {
+                        SearchView
+                            .OnQueryTextListener {
 
                         override fun onQueryTextSubmit(
                             query: String?
@@ -1351,7 +1790,9 @@ private fun applyRunningState(
             R.id.import_manually_policy_group -> {
 
                 importManually(
-                    EConfigType.POLICYGROUP.value
+                    EConfigType
+                        .POLICYGROUP
+                        .value
                 )
 
                 true
@@ -1360,7 +1801,9 @@ private fun applyRunningState(
             R.id.import_manually_proxy_chain -> {
 
                 importManually(
-                    EConfigType.PROXYCHAIN.value
+                    EConfigType
+                        .PROXYCHAIN
+                        .value
                 )
 
                 true
@@ -1387,7 +1830,9 @@ private fun applyRunningState(
             R.id.import_manually_ss -> {
 
                 importManually(
-                    EConfigType.SHADOWSOCKS.value
+                    EConfigType
+                        .SHADOWSOCKS
+                        .value
                 )
 
                 true
@@ -1423,7 +1868,9 @@ private fun applyRunningState(
             R.id.import_manually_wireguard -> {
 
                 importManually(
-                    EConfigType.WIREGUARD.value
+                    EConfigType
+                        .WIREGUARD
+                        .value
                 )
 
                 true
@@ -1432,7 +1879,9 @@ private fun applyRunningState(
             R.id.import_manually_hysteria2 -> {
 
                 importManually(
-                    EConfigType.HYSTERIA2.value
+                    EConfigType
+                        .HYSTERIA2
+                        .value
                 )
 
                 true
@@ -1449,7 +1898,8 @@ private fun applyRunningState(
 
                 toast(
                     getString(
-                        R.string.connection_test_testing_count,
+                        R.string
+                            .connection_test_testing_count,
                         mainViewModel
                             .serversCache
                             .count()
@@ -1531,7 +1981,8 @@ private fun applyRunningState(
                 Intent()
                     .putExtra(
                         "subscriptionId",
-                        mainViewModel.subscriptionId
+                        mainViewModel
+                            .subscriptionId
                     )
                     .setClass(
                         this,
@@ -1548,7 +1999,8 @@ private fun applyRunningState(
                 Intent()
                     .putExtra(
                         "subscriptionId",
-                        mainViewModel.subscriptionId
+                        mainViewModel
+                            .subscriptionId
                     )
                     .setClass(
                         this,
@@ -1566,7 +2018,8 @@ private fun applyRunningState(
                     )
                     .putExtra(
                         "subscriptionId",
-                        mainViewModel.subscriptionId
+                        mainViewModel
+                            .subscriptionId
                     )
                     .setClass(
                         this,
@@ -1576,9 +2029,11 @@ private fun applyRunningState(
         }
     }
 
-    private fun importQRcode(): Boolean {
+    private fun importQRcode():
+        Boolean {
 
-        launchQRCodeScanner { scanResult ->
+        launchQRCodeScanner {
+                scanResult ->
 
             if (
                 scanResult != null
@@ -1602,7 +2057,8 @@ private fun applyRunningState(
      * vmess/vless/trojan/etc:
      * keep original v2rayNG import behavior.
      */
-    private fun importClipboard(): Boolean {
+    private fun importClipboard():
+        Boolean {
 
         try {
 
@@ -1675,17 +2131,6 @@ private fun applyRunningState(
 
             } else {
 
-                /*
-                 * Original behavior for:
-                 *
-                 * vmess://
-                 * vless://
-                 * trojan://
-                 * ss://
-                 * hysteria2://
-                 * multiple configs
-                 * etc.
-                 */
                 importBatchConfig(
                     clipboard
                 )
@@ -1726,7 +2171,8 @@ private fun applyRunningState(
                     AngConfigManager
                         .importBatchConfig(
                             server,
-                            mainViewModel.subscriptionId,
+                            mainViewModel
+                                .subscriptionId,
                             true
                         )
 
@@ -1744,7 +2190,8 @@ private fun applyRunningState(
 
                             toast(
                                 getString(
-                                    R.string.title_import_config_count,
+                                    R.string
+                                        .title_import_config_count,
                                     count
                                 )
                             )
@@ -1795,7 +2242,8 @@ private fun applyRunningState(
         }
     }
 
-    private fun importConfigLocal(): Boolean {
+    private fun importConfigLocal():
+        Boolean {
 
         try {
 
@@ -1817,7 +2265,8 @@ private fun applyRunningState(
         return true
     }
 
-    fun importConfigViaSub(): Boolean {
+    fun importConfigViaSub():
+        Boolean {
 
         showLoading()
 
@@ -1856,7 +2305,8 @@ private fun applyRunningState(
 
                     toast(
                         getString(
-                            R.string.title_update_config_count,
+                            R.string
+                                .title_update_config_count,
                             result.configCount
                         )
                     )
@@ -1865,7 +2315,8 @@ private fun applyRunningState(
 
                     toast(
                         getString(
-                            R.string.title_update_subscription_result,
+                            R.string
+                                .title_update_subscription_result,
                             result.configCount,
                             result.successCount,
                             result.failureCount,
@@ -1913,7 +2364,8 @@ private fun applyRunningState(
 
                     toast(
                         getString(
-                            R.string.title_export_config_count,
+                            R.string
+                                .title_export_config_count,
                             ret
                         )
                     )
@@ -1961,7 +2413,8 @@ private fun applyRunningState(
 
                         toast(
                             getString(
-                                R.string.title_del_config_count,
+                                R.string
+                                    .title_del_config_count,
                                 ret
                             )
                         )
@@ -2008,7 +2461,8 @@ private fun applyRunningState(
 
                         toast(
                             getString(
-                                R.string.title_del_duplicate_config_count,
+                                R.string
+                                    .title_del_duplicate_config_count,
                                 ret
                             )
                         )
@@ -2028,7 +2482,8 @@ private fun applyRunningState(
 
         AlertDialog.Builder(this)
             .setMessage(
-                R.string.del_invalid_config_comfirm
+                R.string
+                    .del_invalid_config_comfirm
             )
             .setPositiveButton(
                 android.R.string.ok
@@ -2055,7 +2510,8 @@ private fun applyRunningState(
 
                         toast(
                             getString(
-                                R.string.title_del_config_count,
+                                R.string
+                                    .title_del_config_count,
                                 ret
                             )
                         )
