@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
+import java.util.Locale
 
 class CheckUpdateActivity : BaseActivity() {
 
@@ -231,8 +232,90 @@ class CheckUpdateActivity : BaseActivity() {
                 View.GONE
             }
 
-        binding.progressUpdate.isIndeterminate =
-            true
+        if (
+            showProgress
+        ) {
+
+            binding.progressUpdate.isIndeterminate =
+                true
+        }
+    }
+
+    private fun showDownloadProgress(
+        version: String,
+        downloadedBytes: Long,
+        totalBytes: Long,
+        progressPercent: Int?
+    ) {
+
+        binding.layoutUpdateStatus.visibility =
+            View.VISIBLE
+
+        binding.progressUpdate.visibility =
+            View.VISIBLE
+
+        if (
+            progressPercent != null &&
+            totalBytes > 0L
+        ) {
+
+            binding.progressUpdate.isIndeterminate =
+                false
+
+            binding.progressUpdate.progress =
+                progressPercent
+
+            binding.tvUpdateStatus.text =
+                buildString {
+
+                    append(
+                        "در حال دانلود $version...\n"
+                    )
+
+                    append(
+                        progressPercent
+                    )
+
+                    append(
+                        "% • "
+                    )
+
+                    append(
+                        formatFileSize(
+                            downloadedBytes
+                        )
+                    )
+
+                    append(
+                        " / "
+                    )
+
+                    append(
+                        formatFileSize(
+                            totalBytes
+                        )
+                    )
+                }
+
+        } else {
+
+            binding.progressUpdate.isIndeterminate =
+                true
+
+            binding.tvUpdateStatus.text =
+                buildString {
+
+                    append(
+                        "در حال دانلود $version...\n"
+                    )
+
+                    append(
+                        formatFileSize(
+                            downloadedBytes
+                        )
+                    )
+                }
+        }
     }
 
     private fun hideUpdateStatus() {
@@ -259,6 +342,63 @@ class CheckUpdateActivity : BaseActivity() {
 
         binding.checkPreRelease.isEnabled =
             !running
+    }
+
+    private fun formatFileSize(
+        bytes: Long
+    ): String {
+
+        val safeBytes =
+            bytes.coerceAtLeast(
+                0L
+            )
+
+        val kb =
+            1024.0
+
+        val mb =
+            kb * 1024.0
+
+        val gb =
+            mb * 1024.0
+
+        return when {
+
+            safeBytes >=
+                gb -> {
+
+                String.format(
+                    Locale.US,
+                    "%.2f GB",
+                    safeBytes / gb
+                )
+            }
+
+            safeBytes >=
+                mb -> {
+
+                String.format(
+                    Locale.US,
+                    "%.1f MB",
+                    safeBytes / mb
+                )
+            }
+
+            safeBytes >=
+                kb -> {
+
+                String.format(
+                    Locale.US,
+                    "%.1f KB",
+                    safeBytes / kb
+                )
+            }
+
+            else -> {
+
+                "$safeBytes B"
+            }
+        }
     }
 
     /*
@@ -492,7 +632,7 @@ class CheckUpdateActivity : BaseActivity() {
         )
 
         showUpdateStatus(
-            "در حال دانلود $version...",
+            "در حال آماده‌سازی دانلود $version...",
             true
         )
 
@@ -512,7 +652,8 @@ class CheckUpdateActivity : BaseActivity() {
                     ) {
 
                         downloadUpdateApk(
-                            result
+                            result = result,
+                            version = version
                         )
                     }
 
@@ -579,6 +720,12 @@ class CheckUpdateActivity : BaseActivity() {
                     return@launch
                 }
 
+                binding.progressUpdate.isIndeterminate =
+                    false
+
+                binding.progressUpdate.progress =
+                    100
+
                 showUpdateStatus(
                     "دانلود کامل شد — آماده نصب",
                     false
@@ -631,7 +778,8 @@ class CheckUpdateActivity : BaseActivity() {
      * local HTTP proxy.
      */
     private fun downloadUpdateApk(
-        result: CheckUpdateResult
+        result: CheckUpdateResult,
+        version: String
     ): File? {
 
         val downloadUrl =
@@ -695,7 +843,7 @@ class CheckUpdateActivity : BaseActivity() {
 
                 else -> {
 
-                    val version =
+                    val safeVersion =
                         result.latestVersion
                             ?.replace(
                                 Regex(
@@ -708,7 +856,7 @@ class CheckUpdateActivity : BaseActivity() {
                             }
                             ?: "update"
 
-                    "MojAzad-$version.apk"
+                    "MojAzad-$safeVersion.apk"
                 }
             }
 
@@ -727,19 +875,49 @@ class CheckUpdateActivity : BaseActivity() {
         temporaryFile.delete()
         finalFile.delete()
 
+        val progressCallback:
+            (
+                downloadedBytes: Long,
+                totalBytes: Long,
+                progressPercent: Int?
+            ) -> Unit =
+            {
+                    downloadedBytes,
+                    totalBytes,
+                    progressPercent ->
+
+                runOnUiThread {
+
+                    showDownloadProgress(
+                        version =
+                            version,
+                        downloadedBytes =
+                            downloadedBytes,
+                        totalBytes =
+                            totalBytes,
+                        progressPercent =
+                            progressPercent
+                    )
+                }
+            }
+
         /*
          * First attempt:
          * normal network path.
          */
         var downloaded =
             HttpUtil.downloadToFile(
-                UrlContentRequest(
-                    url =
-                        downloadUrl,
-                    timeout =
-                        APK_DOWNLOAD_TIMEOUT_MS
-                ),
-                temporaryFile
+                request =
+                    UrlContentRequest(
+                        url =
+                            downloadUrl,
+                        timeout =
+                            APK_DOWNLOAD_TIMEOUT_MS
+                    ),
+                targetFile =
+                    temporaryFile,
+                onProgress =
+                    progressCallback
             )
 
         /*
@@ -755,6 +933,14 @@ class CheckUpdateActivity : BaseActivity() {
 
             temporaryFile.delete()
 
+            runOnUiThread {
+
+                showUpdateStatus(
+                    "اتصال مستقیم ناموفق بود؛ تلاش دوباره از طریق MojAzad...",
+                    true
+                )
+            }
+
             val httpPort =
                 SettingsManager
                     .getHttpPort()
@@ -769,19 +955,23 @@ class CheckUpdateActivity : BaseActivity() {
 
             downloaded =
                 HttpUtil.downloadToFile(
-                    UrlContentRequest(
-                        url =
-                            downloadUrl,
-                        timeout =
-                            APK_DOWNLOAD_TIMEOUT_MS,
-                        httpPort =
-                            httpPort,
-                        proxyUsername =
-                            proxyUsername,
-                        proxyPassword =
-                            proxyPassword
-                    ),
-                    temporaryFile
+                    request =
+                        UrlContentRequest(
+                            url =
+                                downloadUrl,
+                            timeout =
+                                APK_DOWNLOAD_TIMEOUT_MS,
+                            httpPort =
+                                httpPort,
+                            proxyUsername =
+                                proxyUsername,
+                            proxyPassword =
+                                proxyPassword
+                        ),
+                    targetFile =
+                        temporaryFile,
+                    onProgress =
+                        progressCallback
                 )
         }
 
@@ -873,12 +1063,6 @@ class CheckUpdateActivity : BaseActivity() {
             return "شناسه APK دانلودشده با MojAzad مطابقت ندارد"
         }
 
-        /*
-         * Debug builds are only used for development.
-         *
-         * A Debug APK and a Release APK naturally
-         * have different signing certificates.
-         */
         if (
             BuildConfig.DEBUG
         ) {
