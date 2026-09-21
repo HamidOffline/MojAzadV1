@@ -115,10 +115,6 @@
                                 android:textStyle="bold"
                                 app:backgroundTint="@android:color/transparent"
                                 app:cornerRadius="14dp"
-                                app:insetBottom="0dp"
-                                app:insetLeft="0dp"
-                                app:insetRight="0dp"
-                                app:insetTop="0dp"
                                 app:rippleColor="@color/md_theme_primaryContainer"
                                 app:strokeColor="@color/md_theme_primary"
                                 app:strokeWidth="1dp" />
@@ -176,7 +172,6 @@
                             android:paddingEnd="116dp"
                             android:paddingBottom="9dp">
 
-                            <!-- Server + Ping + Health -->
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -218,7 +213,6 @@
 
                             </LinearLayout>
 
-                            <!-- Country / IP -->
                             <TextView
                                 android:id="@+id/tv_test_state"
                                 android:layout_width="match_parent"
@@ -230,7 +224,6 @@
                                 android:textColor="?attr/colorOnSurfaceVariant"
                                 android:textSize="10sp" />
 
-                            <!-- Download / Upload / Duration -->
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
