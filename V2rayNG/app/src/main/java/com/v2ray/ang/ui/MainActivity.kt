@@ -13,6 +13,7 @@ import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -27,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.tabs.TabLayoutMediator
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.core.CoreServiceManager
 import com.v2ray.ang.databinding.ActivityMainBinding
@@ -309,6 +311,8 @@ class MainActivity :
             true
 
         setupNavigationDrawer()
+
+        setupNavigationVersion()
 
         setupAutoFailoverSwitch()
 
@@ -975,12 +979,6 @@ class MainActivity :
             }
     }
 
-    /*
-     * MojAzad:
-     *
-     * Keeps Auto Failover explanation available
-     * without permanently occupying screen space.
-     */
     private fun setupAutoFailoverInfo() {
 
         binding.btnAutoFailoverInfo
@@ -1658,6 +1656,12 @@ class MainActivity :
         }
     }
 
+    /*
+     * =========================================================
+     * Navigation Drawer
+     * =========================================================
+     */
+
     private fun setupNavigationDrawer() {
 
         val toggle =
@@ -1716,6 +1720,34 @@ class MainActivity :
                 }
             }
         )
+    }
+
+    /*
+     * MojAzad:
+     *
+     * Always display the version of the APK that is
+     * actually installed.
+     *
+     * Examples:
+     * 3.0.2-beta1 -> v3.0.2-beta1
+     * 3.0.2       -> v3.0.2
+     */
+    private fun setupNavigationVersion() {
+
+        val headerView =
+            binding.navView
+                .getHeaderView(
+                    0
+                )
+
+        val versionText =
+            headerView
+                .findViewById<TextView>(
+                    R.id.tv_nav_version
+                )
+
+        versionText.text =
+            "v${BuildConfig.VERSION_NAME}"
     }
 
     private fun setupViewModel() {
