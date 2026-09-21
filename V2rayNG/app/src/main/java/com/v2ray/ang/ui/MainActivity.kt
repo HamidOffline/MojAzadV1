@@ -1,5 +1,6 @@
 package com.v2ray.ang.ui
 
+import androidx.appcompat.app.AppCompatDelegate
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
