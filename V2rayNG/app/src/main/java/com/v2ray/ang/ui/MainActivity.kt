@@ -312,6 +312,8 @@ class MainActivity :
 
         setupAutoFailoverSwitch()
 
+        setupAutoFailoverInfo()
+
         resetDashboard()
 
         binding.fab.setOnClickListener {
@@ -406,21 +408,10 @@ class MainActivity :
         binding.tvTestState.text =
             "در حال دریافت کشور و IP..."
 
-        /*
-         * Traffic starts from zero in
-         * NotificationManager when a new server
-         * connection starts.
-         */
         updateDashboardTrafficAndDuration()
 
         startDashboardTicker()
 
-        /*
-         * Automatically Ping current connection.
-         *
-         * User no longer has to tap the dashboard
-         * after connecting.
-         */
         dashboardAutoPingJob
             ?.cancel()
 
@@ -539,10 +530,6 @@ class MainActivity :
         binding.tvDashboardServer.text =
             serverName
 
-        /*
-         * Before the live current-server Ping arrives,
-         * show the most recent server-list Ping.
-         */
         if (
             binding.tvDashboardPing
                 .text
@@ -744,16 +731,6 @@ class MainActivity :
             "⏱ 00:00:00"
     }
 
-    /*
-     * Handles result returned by:
-     *
-     * CoreServiceManager.measureV2rayDelay()
-     *
-     * Example:
-     *
-     * Success: Connection took 168ms
-     * (DE) 2a01:4f8:....
-     */
     private fun handleDashboardPingResult(
         content: String?
     ) {
@@ -805,13 +782,6 @@ class MainActivity :
             )
         }
 
-        /*
-         * Remote IP info arrives after the first line.
-         *
-         * We intentionally do not put
-         * "Success: Connection took..."
-         * here because Ping already has its own field.
-         */
         val lines =
             result
                 .lines()
@@ -1003,6 +973,59 @@ class MainActivity :
                     )
                 }
             }
+    }
+
+    /*
+     * MojAzad:
+     *
+     * Keeps Auto Failover explanation available
+     * without permanently occupying screen space.
+     */
+    private fun setupAutoFailoverInfo() {
+
+        binding.btnAutoFailoverInfo
+            .setOnClickListener {
+
+                showAutoFailoverInfoDialog()
+            }
+    }
+
+    private fun showAutoFailoverInfoDialog() {
+
+        val currentState =
+            if (
+                isAutoFailoverEnabled()
+            ) {
+
+                "فعال"
+
+            } else {
+
+                "غیرفعال"
+            }
+
+        AlertDialog.Builder(this)
+            .setTitle(
+                "Auto Failover"
+            )
+            .setMessage(
+                """
+                Auto Failover هنگام قطع ناگهانی اتصال VPN به‌صورت خودکار وارد عمل می‌شود.
+
+                وقتی فعال باشد، موج آزاد پس از تشخیص قطع واقعی اتصال، سرورها را دوباره بررسی می‌کند و یک سرور سالم و مناسب را برای اتصال مجدد انتخاب می‌کند.
+
+                توقف دستی VPN توسط خود شما باعث اجرای Auto Failover نمی‌شود.
+
+                همچنین این قابلیت هنگام یک اتصال سالم، صرفاً به دلیل تغییر Ping بین سرورها جابه‌جا نمی‌شود؛ بنابراین IP شما بی‌دلیل تغییر نخواهد کرد.
+
+                وضعیت فعلی: $currentState
+                """.trimIndent()
+            )
+            .setPositiveButton(
+                "متوجه شدم",
+                null
+            )
+            .show()
     }
 
     private fun isAutoFailoverEnabled():
@@ -2007,11 +2030,6 @@ class MainActivity :
         }
     }
 
-    /*
-     * MojAzad V3:
-     *
-     * Dashboard tap ONLY refreshes current Ping/IP.
-     */
     private fun handleLayoutTestClick() {
 
         if (
