@@ -1,7 +1,10 @@
-name: MojAzad ARM64 Release APK
+name: MojAzad Full Release
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -78,6 +81,23 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Read MojAzad version
+        run: |
+          VERSION_NAME=$(grep -m1 'versionName = ' \
+            "${{ github.workspace }}/V2rayNG/app/build.gradle.kts" \
+            | sed -E 's/.*"([^"]+)".*/\1/')
+
+          if [ -z "$VERSION_NAME" ]; then
+            echo "ERROR: versionName could not be detected."
+            exit 1
+          fi
+
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$VERSION_NAME" >> "$GITHUB_ENV"
+
+          echo "MojAzad version: $VERSION_NAME"
+          echo "GitHub release tag: v$VERSION_NAME"
+
       - name: Restore MojAzad release keystore
         env:
           MOJAZAD_KEYSTORE_BASE64: ${{ secrets.MOJAZAD_KEYSTORE_BASE64 }}
@@ -95,7 +115,7 @@ jobs:
           echo "MOJAZAD_KEYSTORE_PATH=${{ github.workspace }}/keystore/mojazad-release.jks" \
             >> "$GITHUB_ENV"
 
-      - name: Build MojAzad ARM64 Release APK
+      - name: Build MojAzad Full Release
         env:
           MOJAZAD_KEYSTORE_PASSWORD: ${{ secrets.MOJAZAD_KEYSTORE_PASSWORD }}
           MOJAZAD_KEY_ALIAS: ${{ secrets.MOJAZAD_KEY_ALIAS }}
@@ -107,31 +127,65 @@ jobs:
 
           chmod 755 gradlew
 
-          ./gradlew assemblePlaystoreRelease -PABI_FILTERS=arm64-v8a
+          ./gradlew assemblePlaystoreRelease
 
-      - name: Collect MojAzad ARM64 Release APK
+      - name: Collect MojAzad Release APKs
         run: |
-          mkdir -p "${{ github.workspace }}/mojazad-apk"
+          mkdir -p "${{ github.workspace }}/mojazad-release"
 
           find "${{ github.workspace }}/V2rayNG/app/build/outputs/apk" \
             -type f \
-            -name "MojAzad_*_arm64-v8a.apk" \
-            -exec cp {} "${{ github.workspace }}/mojazad-apk/" \;
+            -name "MojAzad_${VERSION_NAME}_*.apk" \
+            -exec cp {} "${{ github.workspace }}/mojazad-release/" \;
 
-          echo "Generated APK:"
-          ls -lah "${{ github.workspace }}/mojazad-apk"
+          echo "Generated APK files:"
+          ls -lah "${{ github.workspace }}/mojazad-release"
 
-          APK_COUNT=$(find "${{ github.workspace }}/mojazad-apk" -type f -name "*.apk" | wc -l)
+          APK_COUNT=$(find "${{ github.workspace }}/mojazad-release" \
+            -type f \
+            -name "*.apk" \
+            | wc -l)
 
-          if [ "$APK_COUNT" -eq 0 ]; then
-            echo "ERROR: MojAzad ARM64 Release APK was not found."
+          if [ "$APK_COUNT" -ne 5 ]; then
+            echo "ERROR: Expected 5 APK files but found $APK_COUNT."
             exit 1
           fi
 
-      - name: Upload MojAzad ARM64 Release APK
+      - name: Generate SHA256 checksums
+        run: |
+          cd "${{ github.workspace }}/mojazad-release"
+
+          sha256sum *.apk > SHA256SUMS.txt
+
+          echo "SHA256 checksums:"
+          cat SHA256SUMS.txt
+
+      - name: Upload MojAzad Release Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MojAzad-ARM64-Release
-          path: ${{ github.workspace }}/mojazad-apk/*.apk
+          name: MojAzad-${{ env.VERSION_NAME }}-Release
+          path: |
+            ${{ github.workspace }}/mojazad-release/*.apk
+            ${{ github.workspace }}/mojazad-release/SHA256SUMS.txt
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
+
+      - name: Verify release does not already exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "ERROR: GitHub Release ${RELEASE_TAG} already exists."
+            exit 1
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${RELEASE_TAG}" \
+            "${{ github.workspace }}/mojazad-release/"*.apk \
+            "${{ github.workspace }}/mojazad-release/SHA256SUMS.txt" \
+            --target "${GITHUB_SHA}" \
+            --title "MojAzad ${VERSION_NAME}" \
+            --generate-notes
