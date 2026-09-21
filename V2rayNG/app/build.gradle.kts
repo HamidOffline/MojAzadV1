@@ -31,10 +31,19 @@ android {
         targetSdk = 37
 
         /*
-         * MojAzad V2
+         * MojAzad V3 Beta 1
+         *
+         * GitHub tag:
+         * MojAzad.V3-beta1
+         *
+         * Future examples:
+         * 3.0.0
+         * 3.1.0
+         * 3.2.8
+         * 3.2.8-beta1
          */
-        versionCode = 738
-        versionName = "2.2.7"
+        versionCode = 739
+        versionName = "3.0.0-beta1"
 
         multiDexEnabled = true
 
