@@ -2,14 +2,17 @@ package com.v2ray.ang.ui
 
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -34,6 +37,7 @@ import com.v2ray.ang.extension.toast
 import com.v2ray.ang.extension.toastError
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.handler.SubscriptionUpdater
@@ -41,9 +45,11 @@ import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import com.v2ray.ang.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class MainActivity :
     HelperBaseActivity(),
@@ -60,27 +66,47 @@ class MainActivity :
         private const val AUTO_FAILOVER_ENABLED =
             "auto_failover_enabled"
 
-        /*
-         * Prevent repeated server switching.
-         */
         private const val AUTO_FAILOVER_COOLDOWN_MS =
             60_000L
 
-        /*
-         * Wait before confirming that the VPN
-         * really stopped unexpectedly.
-         */
         private const val AUTO_FAILOVER_FIRST_CHECK_MS =
             2_500L
 
         private const val AUTO_FAILOVER_SECOND_CHECK_MS =
             2_500L
 
-        /*
-         * Safety timeout.
-         */
         private const val AUTO_FAILOVER_TIMEOUT_MS =
             45_000L
+
+        /*
+         * MojAzad V3 Dashboard
+         */
+        private const val DASHBOARD_REFRESH_INTERVAL_MS =
+            1_000L
+
+        private const val DASHBOARD_AUTO_PING_DELAY_MS =
+            1_200L
+
+        /*
+         * Server Health
+         */
+        private const val HEALTH_EXCELLENT_MAX =
+            200L
+
+        private const val HEALTH_GOOD_MAX =
+            400L
+
+        private const val HEALTH_COLOR_EXCELLENT =
+            "#00A86B"
+
+        private const val HEALTH_COLOR_GOOD =
+            "#0878E8"
+
+        private const val HEALTH_COLOR_WEAK =
+            "#F59E0B"
+
+        private const val HEALTH_COLOR_OFFLINE =
+            "#E53935"
     }
 
     private val binding by lazy {
@@ -123,6 +149,21 @@ class MainActivity :
     private var lastAutoFailoverAt =
         0L
 
+    /*
+     * MojAzad V3 Dashboard state
+     */
+    private var dashboardJob:
+        Job? = null
+
+    private var dashboardAutoPingJob:
+        Job? = null
+
+    private var dashboardConnectedAtElapsed =
+        0L
+
+    private var dashboardSessionActive =
+        false
+
     private val requestVpnPermission =
         registerForActivityResult(
             ActivityResultContracts
@@ -164,13 +205,6 @@ class MainActivity :
             }
         }
 
-    /*
-     * MojAzad:
-     *
-     * Subscription Settings -> Add
-     *
-     * This route stays fully supported.
-     */
     private val requestSubSettingLauncher =
         registerForActivityResult(
             ActivityResultContracts
@@ -276,18 +310,21 @@ class MainActivity :
 
         setupNavigationDrawer()
 
-        /*
-         * MojAzad V3
-         *
-         * Restore Auto Failover switch state.
-         */
         setupAutoFailoverSwitch()
+
+        resetDashboard()
 
         binding.fab.setOnClickListener {
 
             handleFabAction()
         }
 
+        /*
+         * MojAzad V3:
+         *
+         * Tapping the dashboard only refreshes
+         * current-server Ping + Country/IP.
+         */
         binding.layoutTest.setOnClickListener {
 
             handleLayoutTestClick()
@@ -320,6 +357,610 @@ class MainActivity :
         checkAndRequestPermission(
             PermissionType.POST_NOTIFICATIONS
         ) {
+        }
+    }
+
+    /*
+     * =========================================================
+     * MojAzad V3 Dashboard
+     * =========================================================
+     */
+
+    private fun handleDashboardConnectionState(
+        isRunning: Boolean
+    ) {
+
+        if (
+            isRunning
+        ) {
+
+            if (
+                !dashboardSessionActive
+            ) {
+
+                startDashboardSession()
+
+            } else {
+
+                updateDashboardServerIdentity()
+
+                startDashboardTicker()
+            }
+
+        } else {
+
+            stopDashboardSession()
+        }
+    }
+
+    private fun startDashboardSession() {
+
+        dashboardSessionActive =
+            true
+
+        dashboardConnectedAtElapsed =
+            SystemClock.elapsedRealtime()
+
+        updateDashboardServerIdentity()
+
+        binding.tvTestState.text =
+            "در حال دریافت کشور و IP..."
+
+        /*
+         * Traffic starts from zero in
+         * NotificationManager when a new server
+         * connection starts.
+         */
+        updateDashboardTrafficAndDuration()
+
+        startDashboardTicker()
+
+        /*
+         * Automatically Ping current connection.
+         *
+         * User no longer has to tap the dashboard
+         * after connecting.
+         */
+        dashboardAutoPingJob
+            ?.cancel()
+
+        dashboardAutoPingJob =
+            lifecycleScope.launch {
+
+                delay(
+                    DASHBOARD_AUTO_PING_DELAY_MS
+                )
+
+                if (
+                    mainViewModel
+                        .isRunning
+                        .value == true
+                ) {
+
+                    mainViewModel
+                        .testCurrentServerRealPing()
+                }
+            }
+    }
+
+    private fun stopDashboardSession() {
+
+        dashboardSessionActive =
+            false
+
+        dashboardConnectedAtElapsed =
+            0L
+
+        dashboardJob
+            ?.cancel()
+
+        dashboardJob =
+            null
+
+        dashboardAutoPingJob
+            ?.cancel()
+
+        dashboardAutoPingJob =
+            null
+
+        resetDashboard()
+    }
+
+    private fun startDashboardTicker() {
+
+        if (
+            dashboardJob?.isActive == true
+        ) {
+
+            return
+        }
+
+        dashboardJob =
+            lifecycleScope.launch {
+
+                while (
+                    mainViewModel
+                        .isRunning
+                        .value == true
+                ) {
+
+                    updateDashboardServerIdentity()
+
+                    updateDashboardTrafficAndDuration()
+
+                    delay(
+                        DASHBOARD_REFRESH_INTERVAL_MS
+                    )
+                }
+            }
+    }
+
+    private fun updateDashboardServerIdentity() {
+
+        val runningName =
+            CoreServiceManager
+                .getRunningServerName()
+                .trim()
+
+        val selectedGuid =
+            MmkvManager
+                .getSelectServer()
+
+        val profile =
+            selectedGuid
+                ?.let {
+
+                    MmkvManager
+                        .decodeServerConfig(
+                            it
+                        )
+                }
+
+        val serverName =
+            when {
+
+                runningName.isNotBlank() ->
+
+                    runningName
+
+                !profile
+                    ?.remarks
+                    .isNullOrBlank() ->
+
+                    profile
+                        ?.remarks
+                        .orEmpty()
+
+                else ->
+
+                    "Connected"
+            }
+
+        binding.tvDashboardServer.text =
+            serverName
+
+        /*
+         * Before the live current-server Ping arrives,
+         * show the most recent server-list Ping.
+         */
+        if (
+            binding.tvDashboardPing
+                .text
+                .toString() ==
+            "-- ms"
+        ) {
+
+            val cachedDelay =
+                selectedGuid
+                    ?.let {
+
+                        MmkvManager
+                            .decodeServerAffiliationInfo(
+                                it
+                            )
+                            ?.testDelayMillis
+                    }
+                    ?: 0L
+
+            if (
+                cachedDelay != 0L
+            ) {
+
+                updateDashboardHealth(
+                    cachedDelay
+                )
+            }
+        }
+    }
+
+    private fun updateDashboardTrafficAndDuration() {
+
+        if (
+            mainViewModel
+                .isRunning
+                .value != true
+        ) {
+
+            return
+        }
+
+        val snapshot =
+            NotificationManager
+                .getTrafficSnapshot()
+
+        binding.tvDashboardDownload.text =
+            "↓ ${
+                formatTrafficBytes(
+                    snapshot.downloadBytes
+                )
+            }"
+
+        binding.tvDashboardUpload.text =
+            "↑ ${
+                formatTrafficBytes(
+                    snapshot.uploadBytes
+                )
+            }"
+
+        val elapsedMillis =
+            if (
+                dashboardConnectedAtElapsed >
+                0L
+            ) {
+
+                SystemClock.elapsedRealtime() -
+                    dashboardConnectedAtElapsed
+
+            } else {
+
+                0L
+            }
+
+        binding.tvDashboardDuration.text =
+            "⏱ ${
+                formatConnectionDuration(
+                    elapsedMillis
+                )
+            }"
+    }
+
+    private fun formatTrafficBytes(
+        bytes: Long
+    ): String {
+
+        val safeBytes =
+            bytes.coerceAtLeast(
+                0L
+            )
+
+        val kb =
+            1024.0
+
+        val mb =
+            kb * 1024.0
+
+        val gb =
+            mb * 1024.0
+
+        return when {
+
+            safeBytes >=
+                gb -> {
+
+                String.format(
+                    Locale.US,
+                    "%.2f GB",
+                    safeBytes / gb
+                )
+            }
+
+            safeBytes >=
+                mb -> {
+
+                String.format(
+                    Locale.US,
+                    "%.1f MB",
+                    safeBytes / mb
+                )
+            }
+
+            safeBytes >=
+                kb -> {
+
+                String.format(
+                    Locale.US,
+                    "%.1f KB",
+                    safeBytes / kb
+                )
+            }
+
+            else -> {
+
+                "$safeBytes B"
+            }
+        }
+    }
+
+    private fun formatConnectionDuration(
+        elapsedMillis: Long
+    ): String {
+
+        val totalSeconds =
+            (
+                elapsedMillis /
+                    1000L
+                )
+                .coerceAtLeast(
+                    0L
+                )
+
+        val hours =
+            totalSeconds /
+                3600L
+
+        val minutes =
+            (
+                totalSeconds %
+                    3600L
+                ) /
+                60L
+
+        val seconds =
+            totalSeconds %
+                60L
+
+        return String.format(
+            Locale.US,
+            "%02d:%02d:%02d",
+            hours,
+            minutes,
+            seconds
+        )
+    }
+
+    private fun resetDashboard() {
+
+        binding.tvDashboardServer.text =
+            "Disconnected"
+
+        binding.tvDashboardPing.text =
+            "-- ms"
+
+        binding.ivDashboardHealth.visibility =
+            View.GONE
+
+        binding.tvTestState.text =
+            getString(
+                R.string.connection_not_connected
+            )
+
+        binding.tvDashboardDownload.text =
+            "↓ 0 B"
+
+        binding.tvDashboardUpload.text =
+            "↑ 0 B"
+
+        binding.tvDashboardDuration.text =
+            "⏱ 00:00:00"
+    }
+
+    /*
+     * Handles result returned by:
+     *
+     * CoreServiceManager.measureV2rayDelay()
+     *
+     * Example:
+     *
+     * Success: Connection took 168ms
+     * (DE) 2a01:4f8:....
+     */
+    private fun handleDashboardPingResult(
+        content: String?
+    ) {
+
+        if (
+            mainViewModel
+                .isRunning
+                .value != true
+        ) {
+
+            return
+        }
+
+        val result =
+            content
+                ?.trim()
+                .orEmpty()
+
+        if (
+            result.isBlank()
+        ) {
+
+            return
+        }
+
+        val pingMatch =
+            Regex(
+                "(-?\\d+)\\s*ms",
+                RegexOption.IGNORE_CASE
+            )
+                .find(
+                    result
+                )
+
+        val delay =
+            pingMatch
+                ?.groupValues
+                ?.getOrNull(
+                    1
+                )
+                ?.toLongOrNull()
+
+        if (
+            delay != null
+        ) {
+
+            updateDashboardHealth(
+                delay
+            )
+        }
+
+        /*
+         * Remote IP info arrives after the first line.
+         *
+         * We intentionally do not put
+         * "Success: Connection took..."
+         * here because Ping already has its own field.
+         */
+        val lines =
+            result
+                .lines()
+                .map {
+                    it.trim()
+                }
+                .filter {
+                    it.isNotBlank()
+                }
+
+        if (
+            lines.size >
+            1
+        ) {
+
+            val remoteInfo =
+                lines
+                    .drop(
+                        1
+                    )
+                    .joinToString(
+                        " • "
+                    )
+
+            if (
+                remoteInfo.isNotBlank()
+            ) {
+
+                binding.tvTestState.text =
+                    remoteInfo
+            }
+
+        } else if (
+            delay == null &&
+            (
+                result.contains(
+                    "error",
+                    ignoreCase = true
+                ) ||
+                result.contains(
+                    "fail",
+                    ignoreCase = true
+                )
+            )
+        ) {
+
+            binding.tvDashboardPing.text =
+                "-1 ms"
+
+            updateDashboardHealth(
+                -1L
+            )
+        }
+    }
+
+    private fun updateDashboardHealth(
+        delay: Long
+    ) {
+
+        binding.tvDashboardPing.text =
+            "$delay ms"
+
+        binding.ivDashboardHealth.visibility =
+            View.VISIBLE
+
+        when {
+
+            delay <
+                0L -> {
+
+                binding.ivDashboardHealth
+                    .setImageResource(
+                        R.drawable.ic_health_offline
+                    )
+
+                binding.ivDashboardHealth
+                    .imageTintList =
+                    ColorStateList.valueOf(
+                        Color.parseColor(
+                            HEALTH_COLOR_OFFLINE
+                        )
+                    )
+
+                binding.ivDashboardHealth
+                    .contentDescription =
+                    "Offline"
+            }
+
+            delay <=
+                HEALTH_EXCELLENT_MAX -> {
+
+                binding.ivDashboardHealth
+                    .setImageResource(
+                        R.drawable.ic_health_excellent
+                    )
+
+                binding.ivDashboardHealth
+                    .imageTintList =
+                    ColorStateList.valueOf(
+                        Color.parseColor(
+                            HEALTH_COLOR_EXCELLENT
+                        )
+                    )
+
+                binding.ivDashboardHealth
+                    .contentDescription =
+                    "Excellent"
+            }
+
+            delay <=
+                HEALTH_GOOD_MAX -> {
+
+                binding.ivDashboardHealth
+                    .setImageResource(
+                        R.drawable.ic_health_good
+                    )
+
+                binding.ivDashboardHealth
+                    .imageTintList =
+                    ColorStateList.valueOf(
+                        Color.parseColor(
+                            HEALTH_COLOR_GOOD
+                        )
+                    )
+
+                binding.ivDashboardHealth
+                    .contentDescription =
+                    "Good"
+            }
+
+            else -> {
+
+                binding.ivDashboardHealth
+                    .setImageResource(
+                        R.drawable.ic_health_weak
+                    )
+
+                binding.ivDashboardHealth
+                    .imageTintList =
+                    ColorStateList.valueOf(
+                        Color.parseColor(
+                            HEALTH_COLOR_WEAK
+                        )
+                    )
+
+                binding.ivDashboardHealth
+                    .contentDescription =
+                    "Weak"
+            }
         }
     }
 
@@ -374,16 +1015,6 @@ class MainActivity :
             )
     }
 
-    /*
-     * Called every time VPN running state changes.
-     *
-     * Important:
-     * - Manual disconnect does NOT trigger failover.
-     * - App restart does NOT trigger failover.
-     * - Service restart does NOT trigger failover.
-     * - Only an unexpected disconnect while VPN
-     *   was previously running can trigger failover.
-     */
     private fun handleAutoFailoverRunningState(
         isRunning: Boolean
     ) {
@@ -395,10 +1026,6 @@ class MainActivity :
             wasVpnRunning =
                 true
 
-            /*
-             * A successful connection finishes
-             * any pending failover cycle.
-             */
             autoFailoverInProgress =
                 false
 
@@ -408,9 +1035,6 @@ class MainActivity :
             return
         }
 
-        /*
-         * App just started and VPN was not running.
-         */
         if (
             !wasVpnRunning
         ) {
@@ -421,9 +1045,6 @@ class MainActivity :
         wasVpnRunning =
             false
 
-        /*
-         * User intentionally pressed Stop.
-         */
         if (
             userRequestedStop
         ) {
@@ -434,10 +1055,6 @@ class MainActivity :
             return
         }
 
-        /*
-         * Do not interpret our own controlled
-         * service restart as a connection failure.
-         */
         if (
             restartInProgress
         ) {
@@ -445,9 +1062,6 @@ class MainActivity :
             return
         }
 
-        /*
-         * Feature disabled.
-         */
         if (
             !isAutoFailoverEnabled()
         ) {
@@ -455,9 +1069,6 @@ class MainActivity :
             return
         }
 
-        /*
-         * Already handling another failure.
-         */
         if (
             autoFailoverInProgress
         ) {
@@ -468,10 +1079,6 @@ class MainActivity :
         val now =
             System.currentTimeMillis()
 
-        /*
-         * Cooldown prevents jumping repeatedly
-         * between servers.
-         */
         if (
             now -
                 lastAutoFailoverAt <
@@ -501,12 +1108,6 @@ class MainActivity :
 
         lifecycleScope.launch {
 
-            /*
-             * First confirmation.
-             *
-             * Short temporary interruptions
-             * should not immediately switch servers.
-             */
             delay(
                 AUTO_FAILOVER_FIRST_CHECK_MS
             )
@@ -524,9 +1125,6 @@ class MainActivity :
                 return@launch
             }
 
-            /*
-             * Second confirmation.
-             */
             delay(
                 AUTO_FAILOVER_SECOND_CHECK_MS
             )
@@ -548,27 +1146,11 @@ class MainActivity :
                 "در حال انتخاب سرور جایگزین..."
             )
 
-            /*
-             * Re-use MojAzad's existing tested logic:
-             *
-             * Real Ping All
-             * -> ignore failed / negative ping
-             * -> sort
-             * -> select lowest positive ping
-             * -> emit autoConnectBestServerAction
-             *
-             * Existing observer below will then
-             * start the VPN with the selected server.
-             */
             mainViewModel
                 .testAllRealPing(
                     autoConnectAfterFinish = true
                 )
 
-            /*
-             * Safety reset if no usable server
-             * is found or the ping operation fails.
-             */
             delay(
                 AUTO_FAILOVER_TIMEOUT_MS
             )
@@ -585,22 +1167,6 @@ class MainActivity :
         }
     }
 
-    /**
-     * Handles subscriptions created either from:
-     *
-     * 1. Subscription Settings -> Add
-     * 2. Main menu -> Import from Clipboard
-     *
-     * Flow:
-     *
-     * Download
-     * -> switch to exact subscription
-     * -> rebuild tabs
-     * -> Ping
-     * -> Sort
-     * -> select fastest
-     * -> Connect / Restart VPN
-     */
     private fun handleNewMojAzadSubscription(
         subId: String
     ) {
@@ -696,13 +1262,6 @@ class MainActivity :
         }
     }
 
-    /**
-     * Import a subscription directly from Clipboard.
-     *
-     * Used by:
-     *
-     * + -> Import from Clipboard
-     */
     private fun importMojAzadSubscriptionFromClipboard(
         subscriptionUrl: String
     ) {
@@ -711,9 +1270,6 @@ class MainActivity :
             subscriptionUrl
                 .trim()
 
-        /*
-         * Prevent duplicate subscription URLs.
-         */
         val alreadyExists =
             MmkvManager
                 .decodeSubscriptions()
@@ -735,9 +1291,6 @@ class MainActivity :
             return
         }
 
-        /*
-         * Count existing real subscriptions.
-         */
         val existingSubscriptionCount =
             MmkvManager
                 .decodeSubscriptions()
@@ -781,25 +1334,15 @@ class MainActivity :
                     60L
             }
 
-        /*
-         * Save as a separate subscription.
-         */
         MmkvManager.encodeSubscription(
             subId,
             subscription
         )
 
-        /*
-         * Keep its periodic auto-update enabled.
-         */
         SubscriptionUpdater.syncOne(
             subId = subId
         )
 
-        /*
-         * Same flow used by subscriptions added
-         * from Subscription Settings.
-         */
         handleNewMojAzadSubscription(
             subId
         )
@@ -1158,10 +1701,10 @@ class MainActivity :
             .updateTestResultAction
             .observe(
                 this
-            ) {
+            ) { content ->
 
-                setTestState(
-                    it
+                handleDashboardPingResult(
+                    content
                 )
             }
 
@@ -1176,9 +1719,10 @@ class MainActivity :
                     isRunning
                 )
 
-                /*
-                 * MojAzad V3 Auto Failover.
-                 */
+                handleDashboardConnectionState(
+                    isRunning
+                )
+
                 handleAutoFailoverRunningState(
                     isRunning
                 )
@@ -1200,15 +1744,6 @@ class MainActivity :
                 mainViewModel
                     .consumeAutoConnectBestServerAction()
 
-                /*
-                 * If the user switched Auto Failover
-                 * off while a failover ping was running,
-                 * do not reconnect automatically from
-                 * that failover operation.
-                 *
-                 * Normal MojAzad startup / subscription
-                 * auto-connect remains unchanged.
-                 */
                 if (
                     autoFailoverInProgress &&
                     !isAutoFailoverEnabled()
@@ -1415,10 +1950,6 @@ class MainActivity :
                 .isRunning
                 .value == true
 
-        /*
-         * Tell Auto Failover that this disconnect
-         * was intentionally requested by the user.
-         */
         if (
             currentlyRunning
         ) {
@@ -1476,6 +2007,11 @@ class MainActivity :
         }
     }
 
+    /*
+     * MojAzad V3:
+     *
+     * Dashboard tap ONLY refreshes current Ping/IP.
+     */
     private fun handleLayoutTestClick() {
 
         if (
@@ -1484,11 +2020,8 @@ class MainActivity :
                 .value == true
         ) {
 
-            setTestState(
-                getString(
-                    R.string.connection_test_testing
-                )
-            )
+            binding.tvDashboardPing.text =
+                "..."
 
             mainViewModel
                 .testCurrentServerRealPing()
@@ -1532,10 +2065,6 @@ class MainActivity :
 
     fun restartV2Ray() {
 
-        /*
-         * Prevent Auto Failover from treating our
-         * own restart as a real connection failure.
-         */
         restartInProgress =
             true
 
@@ -1559,10 +2088,6 @@ class MainActivity :
 
             startV2Ray()
 
-            /*
-             * Keep restart guard active briefly
-             * while the service comes back up.
-             */
             delay(
                 2_000
             )
@@ -1603,9 +2128,6 @@ class MainActivity :
                     )
                 )
 
-            binding.tvTestState.text =
-                "Connecting"
-
             binding.fab.contentDescription =
                 "Connecting"
 
@@ -1630,20 +2152,11 @@ class MainActivity :
                     )
                 )
 
-            binding.tvTestState.text =
-                "Connected"
-
             binding.fab
                 .contentDescription =
                 getString(
                     R.string.action_stop_service
                 )
-
-            setTestState(
-                getString(
-                    R.string.connection_connected
-                )
-            )
 
             binding.layoutTest.isFocusable =
                 true
@@ -1664,20 +2177,11 @@ class MainActivity :
                     )
                 )
 
-            binding.tvTestState.text =
-                "Connect"
-
             binding.fab
                 .contentDescription =
                 getString(
                     R.string.tasker_start_service
                 )
-
-            setTestState(
-                getString(
-                    R.string.connection_not_connected
-                )
-            )
 
             binding.layoutTest.isFocusable =
                 false
@@ -1687,9 +2191,26 @@ class MainActivity :
     override fun onResume() {
 
         super.onResume()
+
+        if (
+            mainViewModel
+                .isRunning
+                .value == true
+        ) {
+
+            updateDashboardServerIdentity()
+
+            startDashboardTicker()
+        }
     }
 
     override fun onPause() {
+
+        dashboardJob
+            ?.cancel()
+
+        dashboardJob =
+            null
 
         super.onPause()
     }
@@ -2048,15 +2569,6 @@ class MainActivity :
         return true
     }
 
-    /**
-     * MojAzad Clipboard import.
-     *
-     * HTTP/HTTPS single URL:
-     * treat as a new subscription.
-     *
-     * vmess/vless/trojan/etc:
-     * keep original v2rayNG import behavior.
-     */
     private fun importClipboard():
         Boolean {
 
@@ -2840,6 +3352,12 @@ class MainActivity :
     }
 
     override fun onDestroy() {
+
+        dashboardJob
+            ?.cancel()
+
+        dashboardAutoPingJob
+            ?.cancel()
 
         tabMediator
             ?.detach()
