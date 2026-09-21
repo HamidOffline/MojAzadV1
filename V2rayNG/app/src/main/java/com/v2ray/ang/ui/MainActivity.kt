@@ -1,513 +1,2849 @@
-package com.v2ray.ang
+package com.v2ray.ang.ui
 
+import android.content.Intent
+import android.content.res.ColorStateList
+import android.net.Uri
+import android.net.VpnService
+import android.os.Build
+import android.os.Bundle
+import android.text.InputType
+import android.view.KeyEvent
+import android.view.Menu
+import android.view.MenuItem
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.appcompat.app.ActionBarDrawerToggle
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.AppCompatEditText
+import androidx.appcompat.widget.SearchView
+import androidx.core.content.ContextCompat
+import androidx.core.view.GravityCompat
+import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.navigation.NavigationView
+import com.google.android.material.tabs.TabLayoutMediator
+import com.v2ray.ang.AppConfig
+import com.v2ray.ang.R
+import com.v2ray.ang.core.CoreServiceManager
+import com.v2ray.ang.databinding.ActivityMainBinding
+import com.v2ray.ang.dto.entities.SubscriptionItem
+import com.v2ray.ang.enums.EConfigType
+import com.v2ray.ang.enums.PermissionType
+import com.v2ray.ang.extension.toast
+import com.v2ray.ang.extension.toastError
+import com.v2ray.ang.handler.AngConfigManager
+import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.handler.SettingsChangeManager
+import com.v2ray.ang.handler.SettingsManager
+import com.v2ray.ang.handler.SubscriptionUpdater
+import com.v2ray.ang.util.LogUtil
+import com.v2ray.ang.util.Utils
+import com.v2ray.ang.viewmodel.MainViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-object AppConfig {
+class MainActivity :
+    HelperBaseActivity(),
+    NavigationView.OnNavigationItemSelectedListener {
 
-    /** The application's package name. */
-    const val ANG_PACKAGE = BuildConfig.APPLICATION_ID
-    const val TAG = BuildConfig.APPLICATION_ID
+    companion object {
 
-    /** Directory names used in the app's file system. */
-    const val DIR_ASSETS = "assets"
+        /*
+         * MojAzad V3 Auto Failover
+         */
+        private const val AUTO_FAILOVER_PREFS =
+            "mojazad_v3_preferences"
 
-    const val WEBDAV_BACKUP_DIR = "backups"
-    const val WEBDAV_BACKUP_FILE_NAME = "backup_ng.zip"
+        private const val AUTO_FAILOVER_ENABLED =
+            "auto_failover_enabled"
 
-    /** Legacy configuration keys. */
-    const val ANG_CONFIG = "ang_config"
+        /*
+         * Prevent repeated server switching.
+         */
+        private const val AUTO_FAILOVER_COOLDOWN_MS =
+            60_000L
 
-    // Default subscription ID for ungrouped servers
-    const val DEFAULT_SUBSCRIPTION_ID = "__default_subscription__"
+        /*
+         * Wait before confirming that the VPN
+         * really stopped unexpectedly.
+         */
+        private const val AUTO_FAILOVER_FIRST_CHECK_MS =
+            2_500L
 
-    /** Preferences mapped to MMKV storage. */
-    const val PREF_SNIFFING_ENABLED = "pref_sniffing_enabled"
-    const val PREF_ROUTE_ONLY_ENABLED = "pref_route_only_enabled"
-    const val PREF_PER_APP_PROXY = "pref_per_app_proxy"
-    const val PREF_PER_APP_PROXY_SET = "pref_per_app_proxy_set"
-    const val PREF_BYPASS_APPS = "pref_bypass_apps"
-    const val PREF_LOCAL_DNS_ENABLED = "pref_local_dns_enabled"
-    const val PREF_FAKE_DNS_ENABLED = "pref_fake_dns_enabled"
-    const val PREF_APPEND_HTTP_PROXY = "pref_append_http_proxy"
-    const val PREF_LOCAL_DNS_PORT = "pref_local_dns_port"
-    const val PREF_VPN_DNS = "pref_vpn_dns"
-    const val PREF_VPN_BYPASS_LAN = "pref_vpn_bypass_lan"
-    const val PREF_VPN_INTERFACE_ADDRESS_CONFIG_INDEX = "pref_vpn_interface_address_config_index"
-    const val PREF_VPN_MTU = "pref_vpn_mtu"
-    const val PREF_ROUTING_DOMAIN_STRATEGY = "pref_routing_domain_strategy"
-    const val PREF_ROUTING_RULESET = "pref_routing_ruleset"
-    const val PREF_MUX_ENABLED = "pref_mux_enabled"
-    const val PREF_MUX_CONCURRENCY = "pref_mux_concurrency"
-    const val PREF_MUX_XUDP_CONCURRENCY = "pref_mux_xudp_concurrency"
-    const val PREF_MUX_XUDP_QUIC = "pref_mux_xudp_quic"
-    const val PREF_FRAGMENT_ENABLED = "pref_fragment_enabled"
-    const val PREF_FRAGMENT_PACKETS = "pref_fragment_packets"
-    const val PREF_FRAGMENT_LENGTH = "pref_fragment_length"
-    const val PREF_FRAGMENT_INTERVAL = "pref_fragment_interval"
-    const val PREF_FRAGMENT_MAXSPLIT = "pref_fragment_maxsplit"
-    const val SUBSCRIPTION_UPDATE_TASK_NAME = "subscription_updater"
-    const val SUBSCRIPTION_MIN_INTERVAL_MINUTES = 15L
-    const val PREF_SPEED_ENABLED = "pref_speed_enabled"
-    const val PREF_CONFIRM_REMOVE = "pref_confirm_remove"
-    const val PREF_START_SCAN_IMMEDIATE = "pref_start_scan_immediate"
-    const val PREF_DOUBLE_COLUMN_DISPLAY = "pref_double_column_display"
-    const val PREF_GROUP_ALL_DISPLAY = "pref_group_all_display"
-    const val PREF_LANGUAGE = "pref_language"
-    const val PREF_UI_MODE_NIGHT = "pref_ui_mode_night"
-    const val PREF_IPV6_ENABLED = "pref_ipv6_enabled"
-    const val PREF_PREFER_IPV6 = "pref_prefer_ipv6"
-    const val PREF_PROXY_SHARING = "pref_proxy_sharing_enabled"
-    const val PREF_ENABLE_LOCAL_PROXY = "pref_enable_local_proxy"
-    const val PREF_SOCKS_PORT = "pref_socks_port"
-    const val PREF_DYNAMIC_SOCKS_PORT = "pref_dynamic_socks_port"
-    const val PREF_SOCKS_USERNAME = "pref_socks_username"
-    const val PREF_SOCKS_PASSWORD = "pref_socks_password"
-    const val PREF_SOCKS_ENABLE_UDP = "pref_socks_enable_udp"
-    const val PREF_REMOTE_DNS = "pref_remote_dns"
-    const val PREF_DOMESTIC_DNS = "pref_domestic_dns"
-    const val PREF_DNS_HOSTS = "pref_dns_hosts"
-    const val PREF_DELAY_TEST_URL = "pref_delay_test_url"
-    const val PREF_IP_API_URL = "pref_ip_api_url"
-    const val PREF_LOGLEVEL = "pref_core_loglevel"
-    const val PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD = "pref_outbound_domain_resolve_method"
-    const val PREF_MODE = "pref_mode"
-    const val PREF_ROOT_MODE_ENABLE = "pref_root_mode_enabled"
-    const val PREF_ROOT_LAN_SHARING = "pref_root_lan_sharing"
-    const val PREF_IS_BOOTED = "pref_is_booted"
-    const val PREF_CHECK_UPDATE_PRE_RELEASE = "pref_check_update_pre_release"
-    const val PREF_GEO_FILES_SOURCES = "pref_geo_files_sources"
-    const val PREF_USE_HEV_TUNNEL = "pref_use_hev_tunnel_v2"
-    const val PREF_HEV_TUNNEL_LOGLEVEL = "pref_hev_tunnel_loglevel"
-    const val PREF_HEV_TUNNEL_RW_TIMEOUT = "pref_hev_tunnel_rw_timeout_v2"
-    const val PREF_AUTO_REMOVE_INVALID_AFTER_TEST = "pref_auto_remove_invalid_after_test"
-    const val PREF_AUTO_SORT_AFTER_TEST = "pref_auto_sort_after_test"
-    const val PREF_REAL_PING_CONCURRENCY = "pref_real_ping_concurrency"
+        private const val AUTO_FAILOVER_SECOND_CHECK_MS =
+            2_500L
 
-    /** Cache keys. */
-    const val CACHE_SUBSCRIPTION_ID = "cache_subscription_id"
+        /*
+         * Safety timeout.
+         */
+        private const val AUTO_FAILOVER_TIMEOUT_MS =
+            45_000L
+    }
 
-    /** Protocol identifiers. */
-    const val PROTOCOL_FREEDOM = "freedom"
+    private val binding by lazy {
+        ActivityMainBinding.inflate(
+            layoutInflater
+        )
+    }
 
-    /** Broadcast actions. */
-    const val BROADCAST_ACTION_SERVICE = "$ANG_PACKAGE.action.service"
-    const val BROADCAST_ACTION_ACTIVITY = "$ANG_PACKAGE.action.activity"
-    const val BROADCAST_ACTION_WIDGET_CLICK = "$ANG_PACKAGE.action.widget.click"
+    val mainViewModel: MainViewModel by viewModels()
 
-    /** Tasker extras. */
-    const val TASKER_EXTRA_BUNDLE = "com.twofortyfouram.locale.intent.extra.BUNDLE"
-    const val TASKER_EXTRA_STRING_BLURB = "com.twofortyfouram.locale.intent.extra.BLURB"
-    const val TASKER_EXTRA_BUNDLE_SWITCH = "tasker_extra_bundle_switch"
-    const val TASKER_EXTRA_BUNDLE_GUID = "tasker_extra_bundle_guid"
-    const val TASKER_DEFAULT_GUID = "Default"
+    private lateinit var groupPagerAdapter:
+        GroupPagerAdapter
 
-    /** Tags for different proxy modes. */
-    const val TAG_PROXY = "proxy"
-    const val TAG_DIRECT = "direct"
-    const val TAG_BLOCKED = "block"
-    const val TAG_FRAGMENT = "fragment"
-    const val TAG_DNS = "dns-module"
-    const val TAG_DOMESTIC_DNS = "domestic-dns"
-    const val TAG_BALANCER = "balancer-main"
-    const val TAG_BALANCER_PRE = "balancer"
+    private var tabMediator:
+        TabLayoutMediator? = null
 
-    /** Network-related constants. */
-    const val UPLINK = "uplink"
-    const val DOWNLINK = "downlink"
+    /*
+     * MojAzad V3 Auto Failover state
+     */
+    private val autoFailoverPreferences by lazy {
 
-    /**
-     * URLs for various resources.
+        getSharedPreferences(
+            AUTO_FAILOVER_PREFS,
+            MODE_PRIVATE
+        )
+    }
+
+    private var wasVpnRunning =
+        false
+
+    private var userRequestedStop =
+        false
+
+    private var restartInProgress =
+        false
+
+    private var autoFailoverInProgress =
+        false
+
+    private var lastAutoFailoverAt =
+        0L
+
+    private val requestVpnPermission =
+        registerForActivityResult(
+            ActivityResultContracts
+                .StartActivityForResult()
+        ) {
+
+            if (
+                it.resultCode ==
+                RESULT_OK
+            ) {
+
+                startV2Ray()
+            }
+        }
+
+    private val requestActivityLauncher =
+        registerForActivityResult(
+            ActivityResultContracts
+                .StartActivityForResult()
+        ) {
+
+            if (
+                SettingsChangeManager
+                    .consumeRestartService() &&
+                mainViewModel
+                    .isRunning
+                    .value == true
+            ) {
+
+                restartV2Ray()
+            }
+
+            if (
+                SettingsChangeManager
+                    .consumeSetupGroupTab()
+            ) {
+
+                setupGroupTab()
+            }
+        }
+
+    /*
+     * MojAzad:
      *
-     * MojAzad GitHub:
-     * https://github.com/HamidOffline/MojAzadVPN
-     */
-    const val GITHUB_URL = "https://github.com"
-    const val GITHUB_RAW_URL = "https://raw.githubusercontent.com"
-
-    const val GITHUB_DOWNLOAD_URL =
-        "$GITHUB_URL/%s/releases/latest/download"
-
-    const val ANDROID_PACKAGE_NAME_LIST_URL =
-        "$GITHUB_RAW_URL/2dust/androidpackagenamelist/master/proxy.txt"
-
-    /**
-     * MojAzad main repository.
-     */
-    const val APP_URL =
-        "$GITHUB_URL/HamidOffline/MojAzadVPN"
-
-    /**
-     * MojAzad GitHub Releases API.
+     * Subscription Settings -> Add
      *
-     * Stable:
-     * https://api.github.com/repos/HamidOffline/MojAzadVPN/releases/latest
+     * This route stays fully supported.
+     */
+    private val requestSubSettingLauncher =
+        registerForActivityResult(
+            ActivityResultContracts
+                .StartActivityForResult()
+        ) { result ->
+
+            val needsSetupGroupTab =
+                SettingsChangeManager
+                    .consumeSetupGroupTab()
+
+            if (
+                SettingsChangeManager
+                    .consumeRestartService() &&
+                mainViewModel
+                    .isRunning
+                    .value == true
+            ) {
+
+                restartV2Ray()
+            }
+
+            if (
+                result.resultCode ==
+                RESULT_OK
+            ) {
+
+                val data =
+                    result.data
+
+                val subId =
+                    data
+                        ?.getStringExtra(
+                            SubSettingActivity
+                                .EXTRA_SUB_ID
+                        )
+                        .orEmpty()
+
+                val isNewSubscription =
+                    data
+                        ?.getBooleanExtra(
+                            SubSettingActivity
+                                .EXTRA_IS_NEW_SUB,
+                            false
+                        )
+                        ?: false
+
+                if (
+                    isNewSubscription &&
+                    subId.isNotBlank()
+                ) {
+
+                    handleNewMojAzadSubscription(
+                        subId
+                    )
+
+                    return@registerForActivityResult
+                }
+            }
+
+            if (
+                needsSetupGroupTab
+            ) {
+
+                setupGroupTab()
+
+                refreshGroupTabTitles(
+                    true
+                )
+            }
+        }
+
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
+
+        super.onCreate(
+            savedInstanceState
+        )
+
+        setContentView(
+            binding.root
+        )
+
+        setupToolbar(
+            binding.toolbar,
+            false,
+            getString(
+                R.string.title_server
+            )
+        )
+
+        groupPagerAdapter =
+            GroupPagerAdapter(
+                this,
+                emptyList()
+            )
+
+        binding.viewPager.adapter =
+            groupPagerAdapter
+
+        binding.viewPager.isUserInputEnabled =
+            true
+
+        setupNavigationDrawer()
+
+        /*
+         * MojAzad V3
+         *
+         * Restore Auto Failover switch state.
+         */
+        setupAutoFailoverSwitch()
+
+        binding.fab.setOnClickListener {
+
+            handleFabAction()
+        }
+
+        binding.layoutTest.setOnClickListener {
+
+            handleLayoutTestClick()
+        }
+
+        setupGroupTab()
+
+        setupViewModel()
+
+        val hasValidSubscription =
+            MmkvManager
+                .decodeSubscriptions()
+                .any {
+
+                    it.subscription.url
+                        .isNotBlank()
+                }
+
+        if (
+            !hasValidSubscription
+        ) {
+
+            showMojAzadActivationDialog()
+
+        } else {
+
+            refreshMojAzadSubscription()
+        }
+
+        checkAndRequestPermission(
+            PermissionType.POST_NOTIFICATIONS
+        ) {
+        }
+    }
+
+    /*
+     * =========================================================
+     * MojAzad V3 Auto Failover
+     * =========================================================
+     */
+
+    private fun setupAutoFailoverSwitch() {
+
+        binding.switchAutoFailover.isChecked =
+            isAutoFailoverEnabled()
+
+        binding.switchAutoFailover
+            .setOnCheckedChangeListener {
+                    _,
+                    isChecked ->
+
+                autoFailoverPreferences
+                    .edit()
+                    .putBoolean(
+                        AUTO_FAILOVER_ENABLED,
+                        isChecked
+                    )
+                    .apply()
+
+                if (
+                    isChecked
+                ) {
+
+                    toast(
+                        "Auto Failover فعال شد"
+                    )
+
+                } else {
+
+                    toast(
+                        "Auto Failover غیرفعال شد"
+                    )
+                }
+            }
+    }
+
+    private fun isAutoFailoverEnabled():
+        Boolean {
+
+        return autoFailoverPreferences
+            .getBoolean(
+                AUTO_FAILOVER_ENABLED,
+                false
+            )
+    }
+
+    /*
+     * Called every time VPN running state changes.
      *
-     * Pre-release:
-     * https://api.github.com/repos/HamidOffline/MojAzadVPN/releases
+     * Important:
+     * - Manual disconnect does NOT trigger failover.
+     * - App restart does NOT trigger failover.
+     * - Service restart does NOT trigger failover.
+     * - Only an unexpected disconnect while VPN
+     *   was previously running can trigger failover.
      */
-    const val APP_API_URL =
-        "https://api.github.com/repos/HamidOffline/MojAzadVPN/releases"
+    private fun handleAutoFailoverRunningState(
+        isRunning: Boolean
+    ) {
+
+        if (
+            isRunning
+        ) {
+
+            wasVpnRunning =
+                true
+
+            /*
+             * A successful connection finishes
+             * any pending failover cycle.
+             */
+            autoFailoverInProgress =
+                false
+
+            userRequestedStop =
+                false
+
+            return
+        }
+
+        /*
+         * App just started and VPN was not running.
+         */
+        if (
+            !wasVpnRunning
+        ) {
+
+            return
+        }
+
+        wasVpnRunning =
+            false
+
+        /*
+         * User intentionally pressed Stop.
+         */
+        if (
+            userRequestedStop
+        ) {
+
+            userRequestedStop =
+                false
+
+            return
+        }
+
+        /*
+         * Do not interpret our own controlled
+         * service restart as a connection failure.
+         */
+        if (
+            restartInProgress
+        ) {
+
+            return
+        }
+
+        /*
+         * Feature disabled.
+         */
+        if (
+            !isAutoFailoverEnabled()
+        ) {
+
+            return
+        }
+
+        /*
+         * Already handling another failure.
+         */
+        if (
+            autoFailoverInProgress
+        ) {
+
+            return
+        }
+
+        val now =
+            System.currentTimeMillis()
+
+        /*
+         * Cooldown prevents jumping repeatedly
+         * between servers.
+         */
+        if (
+            now -
+                lastAutoFailoverAt <
+            AUTO_FAILOVER_COOLDOWN_MS
+        ) {
+
+            return
+        }
+
+        startAutoFailover()
+    }
+
+    private fun startAutoFailover() {
+
+        if (
+            !isAutoFailoverEnabled()
+        ) {
+
+            return
+        }
+
+        autoFailoverInProgress =
+            true
+
+        lastAutoFailoverAt =
+            System.currentTimeMillis()
+
+        lifecycleScope.launch {
+
+            /*
+             * First confirmation.
+             *
+             * Short temporary interruptions
+             * should not immediately switch servers.
+             */
+            delay(
+                AUTO_FAILOVER_FIRST_CHECK_MS
+            )
+
+            if (
+                !isAutoFailoverEnabled() ||
+                mainViewModel
+                    .isRunning
+                    .value == true
+            ) {
+
+                autoFailoverInProgress =
+                    false
+
+                return@launch
+            }
+
+            /*
+             * Second confirmation.
+             */
+            delay(
+                AUTO_FAILOVER_SECOND_CHECK_MS
+            )
+
+            if (
+                !isAutoFailoverEnabled() ||
+                mainViewModel
+                    .isRunning
+                    .value == true
+            ) {
+
+                autoFailoverInProgress =
+                    false
+
+                return@launch
+            }
+
+            toast(
+                "در حال انتخاب سرور جایگزین..."
+            )
+
+            /*
+             * Re-use MojAzad's existing tested logic:
+             *
+             * Real Ping All
+             * -> ignore failed / negative ping
+             * -> sort
+             * -> select lowest positive ping
+             * -> emit autoConnectBestServerAction
+             *
+             * Existing observer below will then
+             * start the VPN with the selected server.
+             */
+            mainViewModel
+                .testAllRealPing(
+                    autoConnectAfterFinish = true
+                )
+
+            /*
+             * Safety reset if no usable server
+             * is found or the ping operation fails.
+             */
+            delay(
+                AUTO_FAILOVER_TIMEOUT_MS
+            )
+
+            if (
+                mainViewModel
+                    .isRunning
+                    .value != true
+            ) {
+
+                autoFailoverInProgress =
+                    false
+            }
+        }
+    }
 
     /**
-     * MojAzad GitHub Issues.
+     * Handles subscriptions created either from:
+     *
+     * 1. Subscription Settings -> Add
+     * 2. Main menu -> Import from Clipboard
+     *
+     * Flow:
+     *
+     * Download
+     * -> switch to exact subscription
+     * -> rebuild tabs
+     * -> Ping
+     * -> Sort
+     * -> select fastest
+     * -> Connect / Restart VPN
      */
-    const val APP_ISSUES_URL =
-        "$APP_URL/issues"
+    private fun handleNewMojAzadSubscription(
+        subId: String
+    ) {
+
+        showLoading()
+
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
+
+            try {
+
+                AngConfigManager
+                    .updateConfigViaSubAll()
+
+                val hasServers =
+                    MmkvManager
+                        .decodeServerList(
+                            subId
+                        )
+                        .isNotEmpty()
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    mainViewModel
+                        .subscriptionIdChanged(
+                            subId
+                        )
+
+                    setupGroupTab()
+
+                    refreshGroupTabTitles(
+                        true
+                    )
+
+                    if (
+                        hasServers
+                    ) {
+
+                        mainViewModel
+                            .testAllRealPing(
+                                autoConnectAfterFinish = true
+                            )
+
+                        toast(
+                            "اشتراک جدید با موفقیت اضافه شد"
+                        )
+
+                    } else {
+
+                        toast(
+                            "دریافت سرورهای اشتراک جدید انجام نشد"
+                        )
+                    }
+
+                    hideLoading()
+                }
+
+            } catch (
+                e: Exception
+            ) {
+
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "MojAzad new subscription update failed",
+                    e
+                )
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    mainViewModel
+                        .subscriptionIdChanged(
+                            subId
+                        )
+
+                    setupGroupTab()
+
+                    refreshGroupTabTitles(
+                        true
+                    )
+
+                    hideLoading()
+
+                    toast(
+                        "دریافت اشتراک جدید انجام نشد"
+                    )
+                }
+            }
+        }
+    }
 
     /**
-     * Keep v2rayNG original Mode documentation.
+     * Import a subscription directly from Clipboard.
+     *
+     * Used by:
+     *
+     * + -> Import from Clipboard
      */
-    const val APP_WIKI_MODE =
-        "$GITHUB_URL/2dust/v2rayNG/wiki/Mode"
+    private fun importMojAzadSubscriptionFromClipboard(
+        subscriptionUrl: String
+    ) {
+
+        val normalizedUrl =
+            subscriptionUrl
+                .trim()
+
+        /*
+         * Prevent duplicate subscription URLs.
+         */
+        val alreadyExists =
+            MmkvManager
+                .decodeSubscriptions()
+                .any {
+
+                    it.subscription.url
+                        .trim() ==
+                        normalizedUrl
+                }
+
+        if (
+            alreadyExists
+        ) {
+
+            toast(
+                "این اشتراک قبلاً اضافه شده است"
+            )
+
+            return
+        }
+
+        /*
+         * Count existing real subscriptions.
+         */
+        val existingSubscriptionCount =
+            MmkvManager
+                .decodeSubscriptions()
+                .count {
+
+                    it.subscription.url
+                        .isNotBlank()
+                }
+
+        val subscriptionNumber =
+            existingSubscriptionCount + 1
+
+        val subId =
+            Utils.getUuid()
+
+        val subscription =
+            SubscriptionItem().apply {
+
+                remarks =
+                    if (
+                        subscriptionNumber <= 1
+                    ) {
+
+                        "MojAzad"
+
+                    } else {
+
+                        "MojAzad $subscriptionNumber"
+                    }
+
+                url =
+                    normalizedUrl
+
+                enabled =
+                    true
+
+                autoUpdate =
+                    true
+
+                updateInterval =
+                    60L
+            }
+
+        /*
+         * Save as a separate subscription.
+         */
+        MmkvManager.encodeSubscription(
+            subId,
+            subscription
+        )
+
+        /*
+         * Keep its periodic auto-update enabled.
+         */
+        SubscriptionUpdater.syncOne(
+            subId = subId
+        )
+
+        /*
+         * Same flow used by subscriptions added
+         * from Subscription Settings.
+         */
+        handleNewMojAzadSubscription(
+            subId
+        )
+    }
+
+    private fun showMojAzadActivationDialog() {
+
+        val input =
+            AppCompatEditText(this).apply {
+
+                hint =
+                    "لینک اشتراک موج آزاد"
+
+                inputType =
+                    InputType.TYPE_CLASS_TEXT or
+                        InputType.TYPE_TEXT_VARIATION_URI
+
+                setSingleLine(
+                    true
+                )
+            }
+
+        val dialog =
+            AlertDialog.Builder(this)
+                .setTitle(
+                    "فعال‌سازی MojAzad"
+                )
+                .setMessage(
+                    "لینک اشتراک خود را وارد کنید"
+                )
+                .setView(
+                    input
+                )
+                .setCancelable(
+                    false
+                )
+                .setPositiveButton(
+                    "فعال‌سازی",
+                    null
+                )
+                .create()
+
+        dialog.setOnShowListener {
+
+            dialog
+                .getButton(
+                    AlertDialog.BUTTON_POSITIVE
+                )
+                .setOnClickListener {
+
+                    val subscriptionUrl =
+                        input.text
+                            ?.toString()
+                            ?.trim()
+                            .orEmpty()
+
+                    if (
+                        subscriptionUrl.isBlank()
+                    ) {
+
+                        input.error =
+                            "لینک اشتراک را وارد کنید"
+
+                        return@setOnClickListener
+                    }
+
+                    if (
+                        !Utils.isValidUrl(
+                            subscriptionUrl
+                        )
+                    ) {
+
+                        input.error =
+                            "لینک اشتراک معتبر نیست"
+
+                        return@setOnClickListener
+                    }
+
+                    if (
+                        !Utils.isValidSubUrl(
+                            subscriptionUrl
+                        )
+                    ) {
+
+                        input.error =
+                            "لینک اشتراک معتبر نیست"
+
+                        return@setOnClickListener
+                    }
+
+                    val subId =
+                        Utils.getUuid()
+
+                    val subscription =
+                        SubscriptionItem().apply {
+
+                            remarks =
+                                "MojAzad"
+
+                            url =
+                                subscriptionUrl
+
+                            enabled =
+                                true
+
+                            autoUpdate =
+                                true
+
+                            updateInterval =
+                                60L
+                        }
+
+                    MmkvManager.encodeSubscription(
+                        subId,
+                        subscription
+                    )
+
+                    dialog.dismiss()
+
+                    showLoading()
+
+                    lifecycleScope.launch(
+                        Dispatchers.IO
+                    ) {
+
+                        try {
+
+                            val result =
+                                AngConfigManager
+                                    .updateConfigViaSubAll()
+
+                            if (
+                                result.successCount > 0
+                            ) {
+
+                                SubscriptionUpdater.syncOne(
+                                    subId = subId
+                                )
+
+                                withContext(
+                                    Dispatchers.Main
+                                ) {
+
+                                    mainViewModel
+                                        .subscriptionIdChanged(
+                                            subId
+                                        )
+
+                                    setupGroupTab()
+
+                                    refreshGroupTabTitles(
+                                        true
+                                    )
+
+                                    mainViewModel
+                                        .testAllRealPing(
+                                            autoConnectAfterFinish = true
+                                        )
+
+                                    hideLoading()
+
+                                    toast(
+                                        "اشتراک با موفقیت فعال شد"
+                                    )
+                                }
+
+                            } else {
+
+                                MmkvManager
+                                    .removeSubscription(
+                                        subId
+                                    )
+
+                                withContext(
+                                    Dispatchers.Main
+                                ) {
+
+                                    hideLoading()
+
+                                    toast(
+                                        "دریافت اشتراک انجام نشد"
+                                    )
+
+                                    showMojAzadActivationDialog()
+                                }
+                            }
+
+                        } catch (
+                            e: Exception
+                        ) {
+
+                            MmkvManager
+                                .removeSubscription(
+                                    subId
+                                )
+
+                            LogUtil.e(
+                                AppConfig.TAG,
+                                "MojAzad subscription activation failed",
+                                e
+                            )
+
+                            withContext(
+                                Dispatchers.Main
+                            ) {
+
+                                hideLoading()
+
+                                toast(
+                                    "دریافت اشتراک انجام نشد"
+                                )
+
+                                showMojAzadActivationDialog()
+                            }
+                        }
+                    }
+                }
+        }
+
+        dialog.show()
+    }
+
+    private fun refreshMojAzadSubscription() {
+
+        SubscriptionUpdater.sync()
+
+        showLoading()
+
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
+
+            try {
+
+                val result =
+                    AngConfigManager
+                        .updateConfigViaSubAll()
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    if (
+                        result.configCount > 0
+                    ) {
+
+                        setupGroupTab()
+
+                        mainViewModel
+                            .reloadServerList()
+
+                        refreshGroupTabTitles(
+                            true
+                        )
+
+                        mainViewModel
+                            .testAllRealPing(
+                                autoConnectAfterFinish = true
+                            )
+
+                    } else {
+
+                        mainViewModel
+                            .reloadServerList()
+                    }
+
+                    hideLoading()
+                }
+
+            } catch (
+                e: Exception
+            ) {
+
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "MojAzad startup subscription refresh failed",
+                    e
+                )
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    mainViewModel
+                        .reloadServerList()
+
+                    hideLoading()
+                }
+            }
+        }
+    }
+
+    private fun setupNavigationDrawer() {
+
+        val toggle =
+            ActionBarDrawerToggle(
+                this,
+                binding.drawerLayout,
+                binding.toolbar,
+                R.string.navigation_drawer_open,
+                R.string.navigation_drawer_close
+            )
+
+        binding.drawerLayout
+            .addDrawerListener(
+                toggle
+            )
+
+        toggle.syncState()
+
+        binding.navView
+            .setNavigationItemSelectedListener(
+                this
+            )
+
+        onBackPressedDispatcher.addCallback(
+            this,
+            object :
+                OnBackPressedCallback(
+                    true
+                ) {
+
+                override fun handleOnBackPressed() {
+
+                    if (
+                        binding.drawerLayout
+                            .isDrawerOpen(
+                                GravityCompat.START
+                            )
+                    ) {
+
+                        binding.drawerLayout
+                            .closeDrawer(
+                                GravityCompat.START
+                            )
+
+                    } else {
+
+                        isEnabled =
+                            false
+
+                        onBackPressedDispatcher
+                            .onBackPressed()
+
+                        isEnabled =
+                            true
+                    }
+                }
+            }
+        )
+    }
+
+    private fun setupViewModel() {
+
+        mainViewModel
+            .updateTestResultAction
+            .observe(
+                this
+            ) {
+
+                setTestState(
+                    it
+                )
+            }
+
+        mainViewModel
+            .isRunning
+            .observe(
+                this
+            ) { isRunning ->
+
+                applyRunningState(
+                    false,
+                    isRunning
+                )
+
+                /*
+                 * MojAzad V3 Auto Failover.
+                 */
+                handleAutoFailoverRunningState(
+                    isRunning
+                )
+            }
+
+        mainViewModel
+            .autoConnectBestServerAction
+            .observe(
+                this
+            ) { shouldConnect ->
+
+                if (
+                    shouldConnect != true
+                ) {
+
+                    return@observe
+                }
+
+                mainViewModel
+                    .consumeAutoConnectBestServerAction()
+
+                /*
+                 * If the user switched Auto Failover
+                 * off while a failover ping was running,
+                 * do not reconnect automatically from
+                 * that failover operation.
+                 *
+                 * Normal MojAzad startup / subscription
+                 * auto-connect remains unchanged.
+                 */
+                if (
+                    autoFailoverInProgress &&
+                    !isAutoFailoverEnabled()
+                ) {
+
+                    autoFailoverInProgress =
+                        false
+
+                    return@observe
+                }
+
+                if (
+                    mainViewModel
+                        .isRunning
+                        .value == true
+                ) {
+
+                    restartV2Ray()
+
+                } else if (
+                    SettingsManager.isVpnMode()
+                ) {
+
+                    val intent =
+                        VpnService.prepare(
+                            this
+                        )
+
+                    if (
+                        intent == null
+                    ) {
+
+                        startV2Ray()
+
+                    } else {
+
+                        requestVpnPermission
+                            .launch(
+                                intent
+                            )
+                    }
+
+                } else {
+
+                    startV2Ray()
+                }
+            }
+
+        mainViewModel
+            .startListenBroadcast()
+
+        mainViewModel
+            .initAssets(
+                assets
+            )
+    }
+
+    private fun setupGroupTab() {
+
+        val groups =
+            mainViewModel
+                .getSubscriptions(
+                    this
+                )
+
+        groupPagerAdapter
+            .update(
+                groups
+            )
+
+        tabMediator
+            ?.detach()
+
+        tabMediator =
+            TabLayoutMediator(
+                binding.tabGroup,
+                binding.viewPager
+            ) { tab, position ->
+
+                groupPagerAdapter
+                    .groups
+                    .getOrNull(
+                        position
+                    )
+                    ?.let {
+
+                        tab.text =
+                            it.remarks
+
+                        tab.tag =
+                            it.id
+                    }
+
+            }.also {
+
+                it.attach()
+            }
+
+        val targetIndex =
+            groups
+                .indexOfFirst {
+
+                    it.id ==
+                        mainViewModel.subscriptionId
+                }
+                .takeIf {
+
+                    it >= 0
+                }
+                ?: (
+                    groups.size - 1
+                )
+
+        if (
+            targetIndex >= 0
+        ) {
+
+            binding.viewPager
+                .setCurrentItem(
+                    targetIndex,
+                    false
+                )
+        }
+
+        binding.tabGroup.isVisible =
+            groups.size > 1
+
+        refreshGroupTabTitles(
+            true
+        )
+    }
+
+    fun refreshGroupTabTitles(
+        refreshAll: Boolean = false
+    ) {
+
+        val groupsToRefresh =
+            if (
+                refreshAll ||
+                mainViewModel
+                    .subscriptionId
+                    .isEmpty()
+            ) {
+
+                groupPagerAdapter
+                    .groups
+
+            } else {
+
+                groupPagerAdapter
+                    .groups
+                    .filter {
+
+                        it.id ==
+                            mainViewModel
+                                .subscriptionId
+                    }
+            }
+
+        groupsToRefresh
+            .forEach { group ->
+
+                if (
+                    group.id.isEmpty()
+                ) {
+
+                    return@forEach
+                }
+
+                val tabIndex =
+                    groupPagerAdapter
+                        .groups
+                        .indexOfFirst {
+
+                            it.id ==
+                                group.id
+                        }
+
+                if (
+                    tabIndex >= 0
+                ) {
+
+                    val count =
+                        MmkvManager
+                            .decodeServerList(
+                                group.id
+                            )
+                            .size
+
+                    binding.tabGroup
+                        .getTabAt(
+                            tabIndex
+                        )
+                        ?.text =
+                        "${group.remarks} ($count)"
+                }
+            }
+    }
+
+    private fun handleFabAction() {
+
+        val currentlyRunning =
+            mainViewModel
+                .isRunning
+                .value == true
+
+        /*
+         * Tell Auto Failover that this disconnect
+         * was intentionally requested by the user.
+         */
+        if (
+            currentlyRunning
+        ) {
+
+            userRequestedStop =
+                true
+        }
+
+        applyRunningState(
+            isLoading = true,
+            isRunning = false
+        )
+
+        if (
+            currentlyRunning
+        ) {
+
+            CoreServiceManager
+                .stopVService(
+                    this
+                )
+
+        } else if (
+            SettingsManager.isVpnMode()
+        ) {
+
+            userRequestedStop =
+                false
+
+            val intent =
+                VpnService.prepare(
+                    this
+                )
+
+            if (
+                intent == null
+            ) {
+
+                startV2Ray()
+
+            } else {
+
+                requestVpnPermission
+                    .launch(
+                        intent
+                    )
+            }
+
+        } else {
+
+            userRequestedStop =
+                false
+
+            startV2Ray()
+        }
+    }
+
+    private fun handleLayoutTestClick() {
+
+        if (
+            mainViewModel
+                .isRunning
+                .value == true
+        ) {
+
+            setTestState(
+                getString(
+                    R.string.connection_test_testing
+                )
+            )
+
+            mainViewModel
+                .testCurrentServerRealPing()
+        }
+    }
+
+    private fun startV2Ray() {
+
+        if (
+            MmkvManager
+                .getSelectServer()
+                .isNullOrEmpty()
+        ) {
+
+            toast(
+                R.string.title_file_chooser
+            )
+
+            return
+        }
+
+        if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.CINNAMON_BUN &&
+            MmkvManager.decodeSettingsBool(
+                AppConfig.PREF_PROXY_SHARING
+            )
+        ) {
+
+            checkAndRequestPermission(
+                PermissionType.ACCESS_LOCAL_NETWORK
+            ) {
+            }
+        }
+
+        CoreServiceManager
+            .startVService(
+                this
+            )
+    }
+
+    fun restartV2Ray() {
+
+        /*
+         * Prevent Auto Failover from treating our
+         * own restart as a real connection failure.
+         */
+        restartInProgress =
+            true
+
+        if (
+            mainViewModel
+                .isRunning
+                .value == true
+        ) {
+
+            CoreServiceManager
+                .stopVService(
+                    this
+                )
+        }
+
+        lifecycleScope.launch {
+
+            delay(
+                500
+            )
+
+            startV2Ray()
+
+            /*
+             * Keep restart guard active briefly
+             * while the service comes back up.
+             */
+            delay(
+                2_000
+            )
+
+            restartInProgress =
+                false
+        }
+    }
+
+    private fun setTestState(
+        content: String?
+    ) {
+
+        binding.tvTestState.text =
+            content
+    }
+
+    private fun applyRunningState(
+        isLoading: Boolean,
+        isRunning: Boolean
+    ) {
+
+        if (
+            isLoading
+        ) {
+
+            binding.fab
+                .setImageResource(
+                    R.drawable.ic_fab_check
+                )
+
+            binding.fab
+                .backgroundTintList =
+                ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.md_theme_primary
+                    )
+                )
+
+            binding.tvTestState.text =
+                "Connecting"
+
+            binding.fab.contentDescription =
+                "Connecting"
+
+            return
+        }
+
+        if (
+            isRunning
+        ) {
+
+            binding.fab
+                .setImageResource(
+                    R.drawable.ic_stop_24dp
+                )
+
+            binding.fab
+                .backgroundTintList =
+                ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.color_fab_active
+                    )
+                )
+
+            binding.tvTestState.text =
+                "Connected"
+
+            binding.fab
+                .contentDescription =
+                getString(
+                    R.string.action_stop_service
+                )
+
+            setTestState(
+                getString(
+                    R.string.connection_connected
+                )
+            )
+
+            binding.layoutTest.isFocusable =
+                true
+
+        } else {
+
+            binding.fab
+                .setImageResource(
+                    R.drawable.ic_play_24dp
+                )
+
+            binding.fab
+                .backgroundTintList =
+                ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.color_fab_inactive
+                    )
+                )
+
+            binding.tvTestState.text =
+                "Connect"
+
+            binding.fab
+                .contentDescription =
+                getString(
+                    R.string.tasker_start_service
+                )
+
+            setTestState(
+                getString(
+                    R.string.connection_not_connected
+                )
+            )
+
+            binding.layoutTest.isFocusable =
+                false
+        }
+    }
+
+    override fun onResume() {
+
+        super.onResume()
+    }
+
+    override fun onPause() {
+
+        super.onPause()
+    }
+
+    override fun onCreateOptionsMenu(
+        menu: Menu
+    ): Boolean {
+
+        menuInflater.inflate(
+            R.menu.menu_main,
+            menu
+        )
+
+        val searchItem =
+            menu.findItem(
+                R.id.search_view
+            )
+
+        if (
+            searchItem != null
+        ) {
+
+            val searchView =
+                searchItem.actionView
+                    as SearchView
+
+            searchView
+                .setOnQueryTextListener(
+                    object :
+                        SearchView
+                            .OnQueryTextListener {
+
+                        override fun onQueryTextSubmit(
+                            query: String?
+                        ): Boolean =
+                            false
+
+                        override fun onQueryTextChange(
+                            newText: String?
+                        ): Boolean {
+
+                            mainViewModel
+                                .filterConfig(
+                                    newText.orEmpty()
+                                )
+
+                            return false
+                        }
+                    }
+                )
+
+            searchView
+                .setOnCloseListener {
+
+                    mainViewModel
+                        .filterConfig(
+                            ""
+                        )
+
+                    false
+                }
+        }
+
+        return super
+            .onCreateOptionsMenu(
+                menu
+            )
+    }
+
+    override fun onOptionsItemSelected(
+        item: MenuItem
+    ) =
+        when (
+            item.itemId
+        ) {
+
+            R.id.import_qrcode -> {
+
+                importQRcode()
+
+                true
+            }
+
+            R.id.import_clipboard -> {
+
+                importClipboard()
+
+                true
+            }
+
+            R.id.import_local -> {
+
+                importConfigLocal()
+
+                true
+            }
+
+            R.id.import_manually_policy_group -> {
+
+                importManually(
+                    EConfigType
+                        .POLICYGROUP
+                        .value
+                )
+
+                true
+            }
+
+            R.id.import_manually_proxy_chain -> {
+
+                importManually(
+                    EConfigType
+                        .PROXYCHAIN
+                        .value
+                )
+
+                true
+            }
+
+            R.id.import_manually_vmess -> {
+
+                importManually(
+                    EConfigType.VMESS.value
+                )
+
+                true
+            }
+
+            R.id.import_manually_vless -> {
+
+                importManually(
+                    EConfigType.VLESS.value
+                )
+
+                true
+            }
+
+            R.id.import_manually_ss -> {
+
+                importManually(
+                    EConfigType
+                        .SHADOWSOCKS
+                        .value
+                )
+
+                true
+            }
+
+            R.id.import_manually_socks -> {
+
+                importManually(
+                    EConfigType.SOCKS.value
+                )
+
+                true
+            }
+
+            R.id.import_manually_http -> {
+
+                importManually(
+                    EConfigType.HTTP.value
+                )
+
+                true
+            }
+
+            R.id.import_manually_trojan -> {
+
+                importManually(
+                    EConfigType.TROJAN.value
+                )
+
+                true
+            }
+
+            R.id.import_manually_wireguard -> {
+
+                importManually(
+                    EConfigType
+                        .WIREGUARD
+                        .value
+                )
+
+                true
+            }
+
+            R.id.import_manually_hysteria2 -> {
+
+                importManually(
+                    EConfigType
+                        .HYSTERIA2
+                        .value
+                )
+
+                true
+            }
+
+            R.id.export_all -> {
+
+                exportAll()
+
+                true
+            }
+
+            R.id.real_ping_all -> {
+
+                toast(
+                    getString(
+                        R.string
+                            .connection_test_testing_count,
+                        mainViewModel
+                            .serversCache
+                            .count()
+                    )
+                )
+
+                mainViewModel
+                    .testAllRealPing()
+
+                true
+            }
+
+            R.id.service_restart -> {
+
+                restartV2Ray()
+
+                true
+            }
+
+            R.id.del_all_config -> {
+
+                delAllConfig()
+
+                true
+            }
+
+            R.id.del_duplicate_config -> {
+
+                delDuplicateConfig()
+
+                true
+            }
+
+            R.id.del_invalid_config -> {
+
+                delInvalidConfig()
+
+                true
+            }
+
+            R.id.sort_by_test_results -> {
+
+                sortByTestResults()
+
+                true
+            }
+
+            R.id.sub_update -> {
+
+                importConfigViaSub()
+
+                true
+            }
+
+            R.id.locate_selected_config -> {
+
+                locateSelectedServer()
+
+                true
+            }
+
+            else ->
+
+                super.onOptionsItemSelected(
+                    item
+                )
+        }
+
+    private fun importManually(
+        createConfigType: Int
+    ) {
+
+        if (
+            createConfigType ==
+            EConfigType.POLICYGROUP.value
+        ) {
+
+            startActivity(
+                Intent()
+                    .putExtra(
+                        "subscriptionId",
+                        mainViewModel
+                            .subscriptionId
+                    )
+                    .setClass(
+                        this,
+                        ServerGroupActivity::class.java
+                    )
+            )
+
+        } else if (
+            createConfigType ==
+            EConfigType.PROXYCHAIN.value
+        ) {
+
+            startActivity(
+                Intent()
+                    .putExtra(
+                        "subscriptionId",
+                        mainViewModel
+                            .subscriptionId
+                    )
+                    .setClass(
+                        this,
+                        ServerProxyChainActivity::class.java
+                    )
+            )
+
+        } else {
+
+            startActivity(
+                Intent()
+                    .putExtra(
+                        "createConfigType",
+                        createConfigType
+                    )
+                    .putExtra(
+                        "subscriptionId",
+                        mainViewModel
+                            .subscriptionId
+                    )
+                    .setClass(
+                        this,
+                        ServerActivity::class.java
+                    )
+            )
+        }
+    }
+
+    private fun importQRcode():
+        Boolean {
+
+        launchQRCodeScanner {
+                scanResult ->
+
+            if (
+                scanResult != null
+            ) {
+
+                importBatchConfig(
+                    scanResult
+                )
+            }
+        }
+
+        return true
+    }
 
     /**
-     * Keep upstream privacy/legal document for now.
+     * MojAzad Clipboard import.
+     *
+     * HTTP/HTTPS single URL:
+     * treat as a new subscription.
+     *
+     * vmess/vless/trojan/etc:
+     * keep original v2rayNG import behavior.
      */
-    const val APP_PRIVACY_POLICY =
-        "$GITHUB_RAW_URL/2dust/v2rayNG/master/CR.md"
+    private fun importClipboard():
+        Boolean {
 
-    /**
-     * Original promotion URL.
-     */
-    const val APP_PROMOTION_URL =
-        "aHR0cHM6Ly85LjIzNDQ1Ni54eXovYWJjLmh0bWw="
+        try {
 
-    /**
-     * MojAzad Telegram channel.
-     */
-    const val TG_CHANNEL_URL =
-        "https://t.me/MojAzadNet"
+            val clipboard =
+                Utils.getClipboard(
+                    this
+                )
+                    ?.trim()
+                    .orEmpty()
 
-    const val DELAY_TEST_URL =
-        "https://www.gstatic.com/generate_204"
+            if (
+                clipboard.isBlank()
+            ) {
 
-    const val DELAY_TEST_URL2 =
-        "https://www.google.com/generate_204"
+                toast(
+                    "کلیپ‌بورد خالی است"
+                )
 
-    // const val IP_API_URL = "https://speed.cloudflare.com/meta"
-    const val IP_API_URL =
-        "https://api.ip.sb/geoip"
+                return false
+            }
 
-    /** DNS server addresses. */
-    const val DNS_PROXY = "1.1.1.1"
-    const val DNS_DIRECT = "223.5.5.5"
-    const val DNS_VPN = "1.1.1.1"
-    const val GEOSITE_PRIVATE = "geosite:private"
-    const val GEOSITE_CN = "geosite:cn"
-    const val GEOIP_PRIVATE = "geoip:private"
-    const val GEOIP_CN = "geoip:cn"
+            val isSingleHttpUrl =
+                !clipboard.contains(
+                    "\n"
+                ) &&
+                (
+                    clipboard.startsWith(
+                        "https://",
+                        ignoreCase = true
+                    ) ||
+                    clipboard.startsWith(
+                        "http://",
+                        ignoreCase = true
+                    )
+                )
 
-    /** Geo data file names. */
-    const val GEOSITE_DAT = "geosite.dat"
-    const val GEOIP_DAT = "geoip.dat"
-    const val GEOIP_ONLY_CN_PRIVATE_DAT = "geoip-only-cn-private.dat"
+            if (
+                isSingleHttpUrl
+            ) {
 
-    const val GEOIP_ONLY_CN_PRIVATE_URL =
-        "$GITHUB_RAW_URL/Loyalsoldier/geoip/release/$GEOIP_ONLY_CN_PRIVATE_DAT"
+                if (
+                    !Utils.isValidUrl(
+                        clipboard
+                    )
+                ) {
 
-    /** Ports and addresses for various services. */
-    const val PORT_LOCAL_DNS = "10853"
-    const val PORT_SOCKS = "10808"
+                    toast(
+                        "لینک معتبر نیست"
+                    )
 
-    const val WIREGUARD_LOCAL_ADDRESS_V4 =
-        "172.16.0.2/32"
+                    return false
+                }
 
-    const val WIREGUARD_LOCAL_ADDRESS_V6 =
-        "2606:4700:110:8f81:d551:a0:532e:a2b3/128"
+                if (
+                    !Utils.isValidSubUrl(
+                        clipboard
+                    )
+                ) {
 
-    const val WIREGUARD_LOCAL_MTU =
-        "1420"
+                    toast(
+                        "لینک اشتراک معتبر نیست"
+                    )
 
-    const val LOOPBACK =
-        "127.0.0.1"
+                    return false
+                }
 
-    /** Message constants for communication. */
-    const val MSG_REGISTER_CLIENT = 1
-    const val MSG_STATE_RUNNING = 11
-    const val MSG_STATE_NOT_RUNNING = 12
-    const val MSG_UNREGISTER_CLIENT = 2
-    const val MSG_STATE_START = 3
-    const val MSG_STATE_START_SUCCESS = 31
-    const val MSG_STATE_START_FAILURE = 32
-    const val MSG_STATE_STOP = 4
-    const val MSG_STATE_STOP_SUCCESS = 41
-    const val MSG_STATE_RESTART = 5
-    const val MSG_MEASURE_DELAY = 6
-    const val MSG_MEASURE_DELAY_SUCCESS = 61
-    const val MSG_MEASURE_CONFIG_START = 7
-    const val MSG_MEASURE_CONFIG_CANCEL = 71
-    const val MSG_MEASURE_CONFIG_SUCCESS = 72
-    const val MSG_MEASURE_CONFIG_NOTIFY = 73
-    const val MSG_MEASURE_CONFIG_FINISH = 74
+                importMojAzadSubscriptionFromClipboard(
+                    clipboard
+                )
 
-    /** Notification channel IDs and names. */
-    const val RAY_NG_CHANNEL_ID =
-        "RAY_NG_M_CH_ID"
+            } else {
 
-    const val RAY_NG_CHANNEL_NAME =
-        "v2rayNG Background Service"
+                importBatchConfig(
+                    clipboard
+                )
+            }
 
-    /** Protocols Scheme **/
-    const val VMESS = "vmess://"
-    const val CUSTOM = ""
-    const val SHADOWSOCKS = "ss://"
-    const val SOCKS = "socks://"
-    const val SOCKS4 = "socks4://"
-    const val SOCKS5 = "socks5://"
-    const val HTTP = "http://"
-    const val VLESS = "vless://"
-    const val TROJAN = "trojan://"
-    const val WIREGUARD = "wireguard://"
-    const val TUIC = "tuic://"
-    const val HYSTERIA = "hysteria://"
-    const val HYSTERIA2 = "hysteria2://"
-    const val HY2 = "hy2://"
+        } catch (
+            e: Exception
+        ) {
 
-    /** Give a good name to this, IDK */
-    const val VPN = "VPN"
-    const val VPN_MTU = 1500
+            LogUtil.e(
+                AppConfig.TAG,
+                "Failed to import config from clipboard",
+                e
+            )
 
-    /** Root (system-wide) mode runtime constants. */
-    const val ROOT_RUNTIME_DIR = "root"
-    const val ROOT_IPTABLES_CHAIN = "V2RAY_NG"
+            return false
+        }
 
-    // defensive RETURN tag; hev's only upstream socket is loopback (already bypassed)
-    const val ROOT_FWMARK = 255
+        return true
+    }
 
-    // packets we want pushed into the tun device
-    const val ROOT_MARK_ROUTE = 1
+    private fun importBatchConfig(
+        server: String?
+    ) {
 
-    const val ROOT_ROUTE_TABLE = 2024
-    const val ROOT_RULE_PRIORITY = 1000
-    const val ROOT_TUN_NAME = "v2raytun0"
-    const val ROOT_TUN_ADDR_V4 = "198.18.0.1/15"
-    const val ROOT_TUN_ADDR_V6 = "fdfe:dcba:9876::1/64"
+        showLoading()
 
-    // hev-socks5-tunnel run as a standalone root binary
-    const val ROOT_TUN2SOCKS_BIN = "libhevsockstun.so"
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
 
-    // FORWARD chain for LAN/tethering sharing
-    const val ROOT_FWD_CHAIN = "V2RAY_NG_FWD"
+            try {
 
-    // nat chain for tethered-client DNS DNAT
-    const val ROOT_DNS_CHAIN = "V2RAY_NG_DNS"
+                val (
+                    count,
+                    countSub
+                ) =
+                    AngConfigManager
+                        .importBatchConfig(
+                            server,
+                            mainViewModel
+                                .subscriptionId,
+                            true
+                        )
 
-    // ip6tables filter/OUTPUT chain
-    const val ROOT_V6_CHAIN = "V2RAY_NG6"
+                delay(
+                    500L
+                )
 
-    // ip6tables FORWARD chain
-    const val ROOT_V6_FWD_CHAIN = "V2RAY_NG6_FWD"
+                withContext(
+                    Dispatchers.Main
+                ) {
 
-    // ip6tables mangle/PREROUTING chain
-    const val ROOT_V6_PRE_CHAIN = "V2RAY_NG6_PRE"
+                    when {
 
-    // fallback resolver for tethered clients
-    const val ROOT_LAN_DNS = "1.1.1.1"
+                        count > 0 -> {
 
-    // oom_score_adj
-    const val ROOT_OOM_SCORE = "-1000"
+                            toast(
+                                getString(
+                                    R.string
+                                        .title_import_config_count,
+                                    count
+                                )
+                            )
 
-    /** hev-sock5-tunnel read-write-timeout value */
-    const val HEVTUN_RW_TIMEOUT = "300,60"
+                            mainViewModel
+                                .reloadServerList()
 
-    // Google API rule constants
-    const val GOOGLEAPIS_CN_DOMAIN = "domain:googleapis.cn"
-    const val GOOGLEAPIS_COM_DOMAIN = "googleapis.com"
+                            refreshGroupTabTitles()
+                        }
 
-    // Android Private DNS constants
-    const val DNS_ALIDNS_DOMAIN = "dns.alidns.com"
-    const val DNS_CISCO_SSE_DOMAIN = "dns.sse.cisco.com"
-    const val DNS_CISCO_UMBRELLA_DOMAIN = "dns.umbrella.com"
-    const val DNS_CLOUDFLARE_ONE_DOMAIN = "one.one.one.one"
-    const val DNS_CLOUDFLARE_ONEDOT_DNS_DOMAIN =
-        "1dot1dot1dot1.cloudflare-dns.com"
-    const val DNS_CLOUDFLARE_DNS_COM_DOMAIN =
-        "dns.cloudflare.com"
-    const val DNS_CLOUDFLARE_DNS_DOMAIN =
-        "cloudflare-dns.com"
-    const val DNS_CLOUDFLARE_WARP_DOMAIN =
-        "engage.cloudflareclient.com"
-    const val DNS_DNSPOD_DOH_DOMAIN = "doh.pub"
-    const val DNS_DNSPOD_DOT_DOMAIN = "dot.pub"
-    const val DNS_GOOGLE_DOMAIN = "dns.google"
-    const val DNS_QUAD9_DOMAIN = "dns.quad9.net"
-    const val DNS_SB_DOMAIN = "dns.sb"
-    const val DNS_YANDEX_DOMAIN =
-        "common.dot.dns.yandex.net"
+                        countSub > 0 -> {
 
-    const val DEFAULT_PORT = 443
-    const val DEFAULT_SECURITY = "auto"
-    const val DEFAULT_LEVEL = 8
-    const val DEFAULT_NETWORK = "tcp"
-    const val TLS = "tls"
-    const val REALITY = "reality"
-    const val HEADER_TYPE_HTTP = "http"
+                            setupGroupTab()
+                        }
 
-    const val UNIDENTIFIED_PACKAGE = "__unknown_app__"
+                        else -> {
 
-    val DNS_ALIDNS_ADDRESSES =
-        arrayListOf(
-            "223.5.5.5",
-            "223.6.6.6",
-            "2400:3200::1",
-            "2400:3200:baba::1"
-        )
+                            toastError(
+                                R.string.toast_failure
+                            )
+                        }
+                    }
 
-    val DNS_CISCO_SSE_ADDRESSES =
-        arrayListOf(
-            "208.67.220.220",
-            "208.67.222.222",
-            "2620:119:35::35",
-            "2620:119:53::53"
-        )
+                    hideLoading()
+                }
 
-    val DNS_CISCO_UMBRELLA_ADDRESSES =
-        arrayListOf(
-            "208.67.220.220",
-            "208.67.222.222",
-            "2620:119:35::35",
-            "2620:119:53::53"
-        )
+            } catch (
+                e: Exception
+            ) {
 
-    val DNS_CLOUDFLARE_ONE_ADDRESSES =
-        arrayListOf(
-            "1.1.1.1",
-            "1.0.0.1",
-            "2606:4700:4700::1111",
-            "2606:4700:4700::1001"
-        )
+                withContext(
+                    Dispatchers.Main
+                ) {
 
-    val DNS_CLOUDFLARE_ONEDOT_DNS_ADDRESSES =
-        arrayListOf(
-            "1.1.1.1",
-            "1.0.0.1",
-            "2606:4700:4700::1111",
-            "2606:4700:4700::1001"
-        )
+                    toastError(
+                        R.string.toast_failure
+                    )
 
-    val DNS_CLOUDFLARE_DNS_COM_ADDRESSES =
-        arrayListOf(
-            "162.159.61.8",
-            "172.64.41.8",
-            "2a06:98c1:52::8",
-            "2803:f800:53::8"
-        )
+                    hideLoading()
+                }
 
-    val DNS_CLOUDFLARE_DNS_ADDRESSES =
-        arrayListOf(
-            "104.16.248.249",
-            "104.16.249.249",
-            "2606:4700::6810:f8f9",
-            "2606:4700::6810:f9f9"
-        )
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "Failed to import batch config",
+                    e
+                )
+            }
+        }
+    }
 
-    val DNS_CLOUDFLARE_WARP_ADDRESSES =
-        arrayListOf(
-            "162.159.192.1",
-            "2606:4700:d0::a29f:c001"
-        )
+    private fun importConfigLocal():
+        Boolean {
 
-    val DNS_DNSPOD_DOH_ADDRESSES =
-        arrayListOf(
-            "1.12.12.12",
-            "120.53.53.53"
-        )
+        try {
 
-    val DNS_DNSPOD_DOT_ADDRESSES =
-        arrayListOf(
-            "1.12.12.12",
-            "120.53.53.53"
-        )
+            showFileChooser()
 
-    val DNS_GOOGLE_ADDRESSES =
-        arrayListOf(
-            "8.8.8.8",
-            "8.8.4.4",
-            "2001:4860:4860::8888",
-            "2001:4860:4860::8844"
-        )
+        } catch (
+            e: Exception
+        ) {
 
-    val DNS_QUAD9_ADDRESSES =
-        arrayListOf(
-            "9.9.9.9",
-            "149.112.112.112",
-            "2620:fe::fe",
-            "2620:fe::9"
-        )
+            LogUtil.e(
+                AppConfig.TAG,
+                "Failed to import config from local file",
+                e
+            )
 
-    val DNS_SB_ADDRESSES =
-        arrayListOf(
-            "45.11.45.11",
-            "185.222.222.222",
-            "2a09::",
-            "2a11::"
-        )
+            return false
+        }
 
-    val DNS_YANDEX_ADDRESSES =
-        arrayListOf(
-            "77.88.8.8",
-            "77.88.8.1",
-            "2a02:6b8::feed:0ff",
-            "2a02:6b8:0:1::feed:0ff"
-        )
+        return true
+    }
 
-    // minimum list https://serverfault.com/a/304791
-    val ROUTED_IP_LIST =
-        arrayListOf(
-            "0.0.0.0/5",
-            "8.0.0.0/7",
-            "11.0.0.0/8",
-            "12.0.0.0/6",
-            "16.0.0.0/4",
-            "32.0.0.0/3",
-            "64.0.0.0/2",
-            "128.0.0.0/3",
-            "160.0.0.0/5",
-            "168.0.0.0/6",
-            "172.0.0.0/12",
-            "172.32.0.0/11",
-            "172.64.0.0/10",
-            "172.128.0.0/9",
-            "173.0.0.0/8",
-            "174.0.0.0/7",
-            "176.0.0.0/4",
-            "192.0.0.0/9",
-            "192.128.0.0/11",
-            "192.160.0.0/13",
-            "192.169.0.0/16",
-            "192.170.0.0/15",
-            "192.172.0.0/14",
-            "192.176.0.0/12",
-            "192.192.0.0/10",
-            "193.0.0.0/8",
-            "194.0.0.0/7",
-            "196.0.0.0/6",
-            "200.0.0.0/5",
-            "208.0.0.0/4",
-            "240.0.0.0/4"
-        )
+    fun importConfigViaSub():
+        Boolean {
 
-    val PRIVATE_IP_LIST =
-        arrayListOf(
-            "0.0.0.0/8",
-            "10.0.0.0/8",
-            "127.0.0.0/8",
-            "172.16.0.0/12",
-            "192.168.0.0/16",
-            "169.254.0.0/16",
-            "224.0.0.0/4"
-        )
+        showLoading()
 
-    val GEO_FILES_SOURCES =
-        arrayListOf(
-            "Loyalsoldier/v2ray-rules-dat",
-            "runetfreedom/russia-v2ray-rules-dat",
-            "Chocolate4U/Iran-v2ray-rules"
-        )
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
 
-    val BUILTIN_OUTBOUND_TAGS =
-        setOf(
-            TAG_PROXY,
-            TAG_DIRECT,
-            TAG_BLOCKED,
-        )
+            val result =
+                mainViewModel
+                    .updateConfigViaSubAll()
+
+            delay(
+                500L
+            )
+
+            launch(
+                Dispatchers.Main
+            ) {
+
+                if (
+                    result.successCount +
+                    result.failureCount +
+                    result.skipCount == 0
+                ) {
+
+                    toast(
+                        R.string
+                            .title_update_subscription_no_subscription
+                    )
+
+                } else if (
+                    result.successCount > 0 &&
+                    result.failureCount +
+                    result.skipCount == 0
+                ) {
+
+                    toast(
+                        getString(
+                            R.string
+                                .title_update_config_count,
+                            result.configCount
+                        )
+                    )
+
+                } else {
+
+                    toast(
+                        getString(
+                            R.string
+                                .title_update_subscription_result,
+                            result.configCount,
+                            result.successCount,
+                            result.failureCount,
+                            result.skipCount
+                        )
+                    )
+                }
+
+                if (
+                    result.configCount > 0
+                ) {
+
+                    mainViewModel
+                        .reloadServerList()
+
+                    refreshGroupTabTitles()
+                }
+
+                hideLoading()
+            }
+        }
+
+        return true
+    }
+
+    private fun exportAll() {
+
+        showLoading()
+
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
+
+            val ret =
+                mainViewModel
+                    .exportAllServer()
+
+            launch(
+                Dispatchers.Main
+            ) {
+
+                if (
+                    ret > 0
+                ) {
+
+                    toast(
+                        getString(
+                            R.string
+                                .title_export_config_count,
+                            ret
+                        )
+                    )
+
+                } else {
+
+                    toastError(
+                        R.string.toast_failure
+                    )
+                }
+
+                hideLoading()
+            }
+        }
+    }
+
+    private fun delAllConfig() {
+
+        AlertDialog.Builder(this)
+            .setMessage(
+                R.string.del_config_comfirm
+            )
+            .setPositiveButton(
+                android.R.string.ok
+            ) { _, _ ->
+
+                showLoading()
+
+                lifecycleScope.launch(
+                    Dispatchers.IO
+                ) {
+
+                    val ret =
+                        mainViewModel
+                            .removeAllServer()
+
+                    launch(
+                        Dispatchers.Main
+                    ) {
+
+                        mainViewModel
+                            .reloadServerList()
+
+                        refreshGroupTabTitles()
+
+                        toast(
+                            getString(
+                                R.string
+                                    .title_del_config_count,
+                                ret
+                            )
+                        )
+
+                        hideLoading()
+                    }
+                }
+            }
+            .setNegativeButton(
+                android.R.string.cancel,
+                null
+            )
+            .show()
+    }
+
+    private fun delDuplicateConfig() {
+
+        AlertDialog.Builder(this)
+            .setMessage(
+                R.string.del_config_comfirm
+            )
+            .setPositiveButton(
+                android.R.string.ok
+            ) { _, _ ->
+
+                showLoading()
+
+                lifecycleScope.launch(
+                    Dispatchers.IO
+                ) {
+
+                    val ret =
+                        mainViewModel
+                            .removeDuplicateServer()
+
+                    launch(
+                        Dispatchers.Main
+                    ) {
+
+                        mainViewModel
+                            .reloadServerList()
+
+                        refreshGroupTabTitles()
+
+                        toast(
+                            getString(
+                                R.string
+                                    .title_del_duplicate_config_count,
+                                ret
+                            )
+                        )
+
+                        hideLoading()
+                    }
+                }
+            }
+            .setNegativeButton(
+                android.R.string.cancel,
+                null
+            )
+            .show()
+    }
+
+    private fun delInvalidConfig() {
+
+        AlertDialog.Builder(this)
+            .setMessage(
+                R.string
+                    .del_invalid_config_comfirm
+            )
+            .setPositiveButton(
+                android.R.string.ok
+            ) { _, _ ->
+
+                showLoading()
+
+                lifecycleScope.launch(
+                    Dispatchers.IO
+                ) {
+
+                    val ret =
+                        mainViewModel
+                            .removeInvalidServer()
+
+                    launch(
+                        Dispatchers.Main
+                    ) {
+
+                        mainViewModel
+                            .reloadServerList()
+
+                        refreshGroupTabTitles()
+
+                        toast(
+                            getString(
+                                R.string
+                                    .title_del_config_count,
+                                ret
+                            )
+                        )
+
+                        hideLoading()
+                    }
+                }
+            }
+            .setNegativeButton(
+                android.R.string.cancel,
+                null
+            )
+            .show()
+    }
+
+    private fun sortByTestResults() {
+
+        showLoading()
+
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
+
+            mainViewModel
+                .sortByTestResults()
+
+            launch(
+                Dispatchers.Main
+            ) {
+
+                mainViewModel
+                    .reloadServerList()
+
+                hideLoading()
+            }
+        }
+    }
+
+    private fun showFileChooser() {
+
+        launchFileChooser { uri ->
+
+            if (
+                uri == null
+            ) {
+
+                return@launchFileChooser
+            }
+
+            readContentFromUri(
+                uri
+            )
+        }
+    }
+
+    private fun readContentFromUri(
+        uri: Uri
+    ) {
+
+        try {
+
+            contentResolver
+                .openInputStream(
+                    uri
+                )
+                .use { input ->
+
+                    importBatchConfig(
+                        input
+                            ?.bufferedReader()
+                            ?.readText()
+                    )
+                }
+
+        } catch (
+            e: Exception
+        ) {
+
+            LogUtil.e(
+                AppConfig.TAG,
+                "Failed to read content from URI",
+                e
+            )
+        }
+    }
+
+    private fun locateSelectedServer() {
+
+        val targetSubscriptionId =
+            mainViewModel
+                .findSubscriptionIdBySelect()
+
+        if (
+            targetSubscriptionId
+                .isNullOrEmpty()
+        ) {
+
+            toast(
+                R.string.title_file_chooser
+            )
+
+            return
+        }
+
+        val targetGroupIndex =
+            groupPagerAdapter
+                .groups
+                .indexOfFirst {
+
+                    it.id ==
+                        targetSubscriptionId
+                }
+
+        if (
+            targetGroupIndex < 0
+        ) {
+
+            toast(
+                R.string
+                    .toast_server_not_found_in_group
+            )
+
+            return
+        }
+
+        if (
+            binding.viewPager
+                .currentItem !=
+            targetGroupIndex
+        ) {
+
+            binding.viewPager
+                .setCurrentItem(
+                    targetGroupIndex,
+                    true
+                )
+
+            binding.viewPager
+                .postDelayed(
+                    {
+
+                        scrollToSelectedServer(
+                            targetGroupIndex
+                        )
+                    },
+                    1000
+                )
+
+        } else {
+
+            scrollToSelectedServer(
+                targetGroupIndex
+            )
+        }
+    }
+
+    private fun scrollToSelectedServer(
+        groupIndex: Int
+    ) {
+
+        val itemId =
+            groupPagerAdapter
+                .getItemId(
+                    groupIndex
+                )
+
+        val fragment =
+            supportFragmentManager
+                .findFragmentByTag(
+                    "f$itemId"
+                )
+                as? GroupServerFragment
+
+        if (
+            fragment?.isAdded == true &&
+            fragment.view != null
+        ) {
+
+            fragment
+                .scrollToSelectedServer()
+
+        } else {
+
+            toast(
+                R.string
+                    .toast_fragment_not_available
+            )
+        }
+    }
+
+    override fun onKeyDown(
+        keyCode: Int,
+        event: KeyEvent
+    ): Boolean {
+
+        if (
+            keyCode ==
+            KeyEvent.KEYCODE_BACK ||
+            keyCode ==
+            KeyEvent.KEYCODE_BUTTON_B
+        ) {
+
+            moveTaskToBack(
+                false
+            )
+
+            return true
+        }
+
+        return super
+            .onKeyDown(
+                keyCode,
+                event
+            )
+    }
+
+    override fun onNavigationItemSelected(
+        item: MenuItem
+    ): Boolean {
+
+        when (
+            item.itemId
+        ) {
+
+            R.id.sub_setting ->
+
+                requestSubSettingLauncher.launch(
+                    Intent(
+                        this,
+                        SubSettingActivity::class.java
+                    )
+                )
+
+            R.id.per_app_proxy_settings ->
+
+                requestActivityLauncher.launch(
+                    Intent(
+                        this,
+                        PerAppProxyActivity::class.java
+                    )
+                )
+
+            R.id.routing_setting ->
+
+                requestActivityLauncher.launch(
+                    Intent(
+                        this,
+                        RoutingSettingActivity::class.java
+                    )
+                )
+
+            R.id.user_asset_setting ->
+
+                requestActivityLauncher.launch(
+                    Intent(
+                        this,
+                        UserAssetActivity::class.java
+                    )
+                )
+
+            R.id.settings ->
+
+                requestActivityLauncher.launch(
+                    Intent(
+                        this,
+                        SettingsActivity::class.java
+                    )
+                )
+
+            R.id.promotion ->
+
+                Utils.openUri(
+                    this,
+                    "${
+                        Utils.decode(
+                            AppConfig.APP_PROMOTION_URL
+                        )
+                    }?t=${
+                        System.currentTimeMillis()
+                    }"
+                )
+
+            R.id.logcat ->
+
+                startActivity(
+                    Intent(
+                        this,
+                        LogcatActivity::class.java
+                    )
+                )
+
+            R.id.check_for_update ->
+
+                startActivity(
+                    Intent(
+                        this,
+                        CheckUpdateActivity::class.java
+                    )
+                )
+
+            R.id.backup_restore ->
+
+                requestActivityLauncher.launch(
+                    Intent(
+                        this,
+                        BackupActivity::class.java
+                    )
+                )
+
+            R.id.about ->
+
+                startActivity(
+                    Intent(
+                        this,
+                        AboutActivity::class.java
+                    )
+                )
+        }
+
+        binding.drawerLayout
+            .closeDrawer(
+                GravityCompat.START
+            )
+
+        return true
+    }
+
+    override fun onDestroy() {
+
+        tabMediator
+            ?.detach()
+
+        super.onDestroy()
+    }
 }
