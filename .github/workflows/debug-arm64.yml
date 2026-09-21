@@ -1,0 +1,147 @@
+name: MojAzad ARM64 Debug Only
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+          fetch-depth: '0'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          log-accepted-android-sdk-licenses: false
+          cmdline-tools-version: '14742923'
+          packages: 'platforms;android-37.0 build-tools;36.0.0'
+
+      - name: Install NDK
+        run: |
+          echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            --channel=0 \
+            --install "ndk;29.0.14206865"
+
+          echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+          if ! grep -q 'ndkVersion = "29.0.14206865"' \
+            "${{ github.workspace }}/V2rayNG/app/build.gradle.kts"; then
+
+            sed -i '/^android {/a\    ndkVersion = "29.0.14206865"' \
+              "${{ github.workspace }}/V2rayNG/app/build.gradle.kts"
+          fi
+
+      - name: Restore cached libhevtun
+        id: cache-libhevtun-restore
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/libs
+          key: libhevtun-${{ runner.os }}-${{ hashFiles('compile-hevtun.sh') }}
+
+      - name: Build libhevtun
+        if: steps.cache-libhevtun-restore.outputs.cache-hit != 'true'
+        run: |
+          bash compile-hevtun.sh
+
+      - name: Save libhevtun
+        if: steps.cache-libhevtun-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/libs
+          key: libhevtun-${{ runner.os }}-${{ hashFiles('compile-hevtun.sh') }}
+
+      - name: Copy libhevtun
+        run: |
+          cp -r \
+            "${{ github.workspace }}/libs" \
+            "${{ github.workspace }}/V2rayNG/app/"
+
+      - name: Detect AndroidLibXrayLite version
+        run: |
+          CURRENT_TAG="$(git -C \
+            "${{ github.workspace }}/AndroidLibXrayLite" \
+            describe --tags --abbrev=0)"
+
+          if [ -z "$CURRENT_TAG" ]; then
+            echo "ERROR: AndroidLibXrayLite tag could not be detected."
+            exit 1
+          fi
+
+          echo "AndroidLibXrayLite tag: $CURRENT_TAG"
+          echo "CURRENT_TAG=$CURRENT_TAG" >> "$GITHUB_ENV"
+
+      - name: Download libv2ray
+        uses: robinraju/release-downloader@v1.13
+        with:
+          repository: '2dust/AndroidLibXrayLite'
+          tag: ${{ env.CURRENT_TAG }}
+          fileName: 'libv2ray.aar'
+          out-file-path: V2rayNG/app/libs/
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Read MojAzad version
+        run: |
+          VERSION_NAME="$(grep -m1 'versionName = ' \
+            "${{ github.workspace }}/V2rayNG/app/build.gradle.kts" \
+            | sed -E 's/.*"([^"]+)".*/\1/')"
+
+          if [ -z "$VERSION_NAME" ]; then
+            echo "ERROR: versionName could not be detected."
+            exit 1
+          fi
+
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "Debug version: $VERSION_NAME"
+
+      - name: Build MojAzad ARM64 Debug APK
+        run: |
+          cd "${{ github.workspace }}/V2rayNG"
+
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+
+          chmod 755 gradlew
+
+          ./gradlew assemblePlaystoreDebug \
+            -PABI_FILTERS=arm64-v8a
+
+      - name: Collect ARM64 Debug APK
+        run: |
+          OUTPUT_DIR="${{ github.workspace }}/mojazad-arm64-debug"
+
+          mkdir -p "$OUTPUT_DIR"
+
+          find "${{ github.workspace }}/V2rayNG/app/build/outputs/apk" \
+            -type f \
+            -name "MojAzad_${VERSION_NAME}_arm64-v8a.apk" \
+            -exec cp {} "$OUTPUT_DIR/" \;
+
+          echo "ARM64 Debug output:"
+          ls -lah "$OUTPUT_DIR"
+
+          APK_COUNT="$(find "$OUTPUT_DIR" \
+            -type f \
+            -name '*.apk' \
+            | wc -l)"
+
+          if [ "$APK_COUNT" -ne 1 ]; then
+            echo "ERROR: Expected exactly 1 ARM64 APK but found $APK_COUNT."
+            exit 1
+          fi
+
+      - name: Upload ARM64 Debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: MojAzad-${{ env.VERSION_NAME }}-ARM64-Debug-Only
+          path: ${{ github.workspace }}/mojazad-arm64-debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
