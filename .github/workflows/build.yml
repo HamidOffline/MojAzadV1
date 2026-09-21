@@ -2,6 +2,12 @@ name: MojAzad Full Release
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm_stable_release:
+        description: 'برای انتشار نسخه Stable این گزینه را فعال کنید'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -30,11 +36,12 @@ jobs:
             --channel=0 \
             --install "ndk;29.0.14206865"
 
-          echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
+          echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
 
           sed -i '10i\
           \
-              ndkVersion = "29.0.14206865"' ${{ github.workspace }}/V2rayNG/app/build.gradle.kts
+              ndkVersion = "29.0.14206865"' \
+            "${{ github.workspace }}/V2rayNG/app/build.gradle.kts"
 
       - name: Restore cached libhev1tun
         id: cache-libhev1tun-restore
@@ -57,14 +64,20 @@ jobs:
 
       - name: Copy libhev1tun
         run: |
-          cp -r "${{ github.workspace }}/libs" "${{ github.workspace }}/V2rayNG/app/"
+          cp -r \
+            "${{ github.workspace }}/libs" \
+            "${{ github.workspace }}/V2rayNG/app/"
 
       - name: Fetch AndroidLibXrayLite tag
         run: |
           pushd AndroidLibXrayLite
-          CURRENT_TAG=$(git describe --tags --abbrev=0)
+
+          CURRENT_TAG="$(git describe --tags --abbrev=0)"
+
           echo "Current tag: $CURRENT_TAG"
+
           echo "CURRENT_TAG=$CURRENT_TAG" >> "$GITHUB_ENV"
+
           popd
 
       - name: Download libv2ray
@@ -83,20 +96,44 @@ jobs:
 
       - name: Read MojAzad version
         run: |
-          VERSION_NAME=$(grep -m1 'versionName = ' \
+          VERSION_NAME="$(grep -m1 'versionName = ' \
             "${{ github.workspace }}/V2rayNG/app/build.gradle.kts" \
-            | sed -E 's/.*"([^"]+)".*/\1/')
+            | sed -E 's/.*"([^"]+)".*/\1/')"
 
           if [ -z "$VERSION_NAME" ]; then
             echo "ERROR: versionName could not be detected."
             exit 1
           fi
 
+          RELEASE_TAG="v${VERSION_NAME}"
+
+          case "$VERSION_NAME" in
+            *-beta*|*-alpha*|*-rc*)
+              IS_PRERELEASE="true"
+              ;;
+            *)
+              IS_PRERELEASE="false"
+              ;;
+          esac
+
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=v$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "IS_PRERELEASE=$IS_PRERELEASE" >> "$GITHUB_ENV"
 
           echo "MojAzad version: $VERSION_NAME"
-          echo "GitHub release tag: v$VERSION_NAME"
+          echo "GitHub release tag: $RELEASE_TAG"
+          echo "Pre-release: $IS_PRERELEASE"
+
+      - name: Protect stable release
+        if: env.IS_PRERELEASE == 'false'
+        run: |
+          if [ "${{ inputs.confirm_stable_release }}" != "true" ]; then
+            echo "ERROR: Stable release requires explicit confirmation."
+            echo "Run the workflow again and enable confirm_stable_release."
+            exit 1
+          fi
+
+          echo "Stable release explicitly confirmed."
 
       - name: Restore MojAzad release keystore
         env:
@@ -109,8 +146,14 @@ jobs:
 
           mkdir -p "${{ github.workspace }}/keystore"
 
-          echo "${MOJAZAD_KEYSTORE_BASE64}" | base64 --decode \
+          printf '%s' "${MOJAZAD_KEYSTORE_BASE64}" \
+            | base64 --decode \
             > "${{ github.workspace }}/keystore/mojazad-release.jks"
+
+          if [ ! -s "${{ github.workspace }}/keystore/mojazad-release.jks" ]; then
+            echo "ERROR: Restored keystore is empty."
+            exit 1
+          fi
 
           echo "MOJAZAD_KEYSTORE_PATH=${{ github.workspace }}/keystore/mojazad-release.jks" \
             >> "$GITHUB_ENV"
@@ -131,20 +174,24 @@ jobs:
 
       - name: Collect MojAzad Release APKs
         run: |
-          mkdir -p "${{ github.workspace }}/mojazad-release"
+          RELEASE_DIR="${{ github.workspace }}/mojazad-release"
+
+          mkdir -p "$RELEASE_DIR"
 
           find "${{ github.workspace }}/V2rayNG/app/build/outputs/apk" \
             -type f \
             -name "MojAzad_${VERSION_NAME}_*.apk" \
-            -exec cp {} "${{ github.workspace }}/mojazad-release/" \;
+            -exec cp {} "$RELEASE_DIR/" \;
 
           echo "Generated APK files:"
-          ls -lah "${{ github.workspace }}/mojazad-release"
+          ls -lah "$RELEASE_DIR"
 
-          APK_COUNT=$(find "${{ github.workspace }}/mojazad-release" \
+          APK_COUNT="$(find "$RELEASE_DIR" \
             -type f \
             -name "*.apk" \
-            | wc -l)
+            | wc -l)"
+
+          echo "APK count: $APK_COUNT"
 
           if [ "$APK_COUNT" -ne 5 ]; then
             echo "ERROR: Expected 5 APK files but found $APK_COUNT."
@@ -155,7 +202,9 @@ jobs:
         run: |
           cd "${{ github.workspace }}/mojazad-release"
 
-          sha256sum *.apk > SHA256SUMS.txt
+          sha256sum *.apk \
+            | sort \
+            > SHA256SUMS.txt
 
           echo "SHA256 checksums:"
           cat SHA256SUMS.txt
@@ -179,7 +228,21 @@ jobs:
             exit 1
           fi
 
-      - name: Publish GitHub Release
+      - name: Publish GitHub Pre-release
+        if: env.IS_PRERELEASE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${RELEASE_TAG}" \
+            "${{ github.workspace }}/mojazad-release/"*.apk \
+            "${{ github.workspace }}/mojazad-release/SHA256SUMS.txt" \
+            --target "${GITHUB_SHA}" \
+            --title "MojAzad ${VERSION_NAME}" \
+            --generate-notes \
+            --prerelease
+
+      - name: Publish GitHub Stable Release
+        if: env.IS_PRERELEASE == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
