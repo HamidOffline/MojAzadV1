@@ -1,7 +1,5 @@
 package com.v2ray.ang.ui
 
-import android.view.ViewGroup
-import androidx.appcompat.widget.ActionMenuView
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -328,7 +326,6 @@ class MainActivity :
                 R.string.title_server
             )
         )
-        setupToolbarGlassActions()
 
         groupPagerAdapter =
             GroupPagerAdapter(
@@ -397,98 +394,7 @@ class MainActivity :
      * MojAzad Theme
      * =========================================================
      */
-        
-        private fun setupToolbarGlassActions() {
 
-    binding.toolbar.post {
-
-        val actionMenuView =
-            findActionMenuView(
-                binding.toolbar
-            ) ?: return@post
-
-        val margin =
-            (
-                3 *
-                    resources.displayMetrics.density
-                )
-                .toInt()
-
-        for (
-            index in
-            0 until actionMenuView.childCount
-        ) {
-
-            val actionView =
-                actionMenuView.getChildAt(
-                    index
-                )
-
-            actionView.setBackgroundResource(
-                R.drawable.bg_toolbar_glass
-            )
-
-            val params =
-                actionView.layoutParams
-
-            if (
-                params is ViewGroup.MarginLayoutParams
-            ) {
-
-                params.marginStart =
-                    margin
-
-                params.marginEnd =
-                    margin
-
-                actionView.layoutParams =
-                    params
-            }
-        }
-    }
-}
-
-private fun findActionMenuView(
-    parent: ViewGroup
-): ActionMenuView? {
-
-    for (
-        index in
-        0 until parent.childCount
-    ) {
-
-        val child =
-            parent.getChildAt(
-                index
-            )
-
-        if (
-            child is ActionMenuView
-        ) {
-
-            return child
-        }
-
-        if (
-            child is ViewGroup
-        ) {
-
-            val result =
-                findActionMenuView(
-                    child
-                )
-
-            if (
-                result != null
-            ) {
-
-                return result
-            }
-        }
-    }
-
-    return null
-}
     private fun applySavedTheme() {
 
         when (
