@@ -951,4 +951,110 @@ object HttpUtil {
             false
         }
     }
+  /**
+ * MojAzad Subscription Header Reader
+ *
+ * Reads:
+ * subscription-userinfo
+ *
+ * Example:
+ * upload=123;
+ * download=456;
+ * total=789;
+ * expire=123456789
+ */
+fun getUrlContentWithHeaders(
+    request: UrlContentRequest
+): Pair<String, Map<String, String>> {
+
+    val url =
+        request.url
+            ?: return "" to emptyMap()
+
+
+    val client =
+        buildOkHttpClient(
+            request.timeout,
+            request.httpPort,
+            request.proxyUsername,
+            request.proxyPassword,
+            followRedirects = true
+        )
+
+
+    val userAgent =
+        if (
+            request.userAgent
+                .isNullOrBlank()
+        ) {
+
+            "v2rayNG/${BuildConfig.VERSION_NAME}"
+
+        } else {
+
+            request.userAgent
+        }
+
+
+    val requestBuilder =
+        Request.Builder()
+            .url(
+                url
+            )
+            .get()
+            .header(
+                "User-Agent",
+                userAgent
+            )
+            .header(
+                "Connection",
+                "close"
+            )
+
+
+    return try {
+
+        client
+            .newCall(
+                requestBuilder.build()
+            )
+            .execute()
+            .use { response ->
+
+
+                val headers =
+                    response.headers
+                        .toMultimap()
+                        .mapValues {
+
+                            it.value
+                                .joinToString(
+                                    ";"
+                                )
+                        }
+
+
+                val body =
+                    response.body
+                        ?.string()
+                        .orEmpty()
+
+
+                body to headers
+            }
+
+
+    } catch (
+        e: Exception
+    ) {
+
+        LogUtil.e(
+            AppConfig.TAG,
+            "Subscription header request failed",
+            e
+        )
+
+        "" to emptyMap()
+    }
+}  
 }
