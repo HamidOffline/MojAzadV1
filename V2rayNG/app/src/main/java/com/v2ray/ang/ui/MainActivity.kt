@@ -373,15 +373,17 @@ class MainActivity :
                 }
 
         if (
-            !hasValidSubscription
-        ) {
+    !hasValidSubscription
+) {
 
-            showMojAzadActivationDialog()
+    showMojAzadActivationDialog()
 
-        } else {
+} else {
 
-            refreshMojAzadSubscription()
-        }
+    refreshMojAzadSubscription()
+
+    updateSubscriptionUsage()
+}
 
         checkAndRequestPermission(
             PermissionType.POST_NOTIFICATIONS
