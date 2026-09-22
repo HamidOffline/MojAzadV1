@@ -398,14 +398,14 @@ class MainActivity :
      * =========================================================
      */
 private fun setupToolbarGlassActions() {
+private fun setupToolbarGlassActions() {
 
     binding.toolbar.post {
 
         val actionMenuView =
             findActionMenuView(
                 binding.toolbar
-            )
-                ?: return@post
+            ) ?: return@post
 
         val margin =
             (
@@ -486,6 +486,8 @@ private fun findActionMenuView(
             }
         }
     }
+
+    return null
 }
     private fun applySavedTheme() {
 
