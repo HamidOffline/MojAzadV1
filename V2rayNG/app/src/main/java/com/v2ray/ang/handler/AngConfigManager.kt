@@ -586,25 +586,123 @@ object AngConfigManager {
             )
 
 
-        var configText =
-            try {
+        val response =
+    try {
 
-                HttpUtil.getUrlContentWithUserAgent(
-                    request
-                )
+        HttpUtil.getUrlContentWithHeaders(
+            request
+        )
 
-            } catch (
-                e: Exception
-            ) {
+    } catch (
+        e: Exception
+    ) {
 
-                LogUtil.e(
-                    AppConfig.TAG,
-                    "Subscription download failed",
-                    e
-                )
+        LogUtil.e(
+            AppConfig.TAG,
+            "Subscription download failed",
+            e
+        )
 
-                ""
-            }
+        "" to emptyMap()
+    }
+
+
+val configText =
+    response.first
+
+
+val headers =
+    response.second
+
+
+/*
+ * MojAzad Subscription Usage
+ *
+ * Reads:
+ *
+ * subscription-userinfo:
+ * upload=
+ * download=
+ * total=
+ * expire=
+ */
+
+val subscriptionInfo =
+    headers.entries
+        .firstOrNull {
+
+            it.key.equals(
+                "subscription-userinfo",
+                ignoreCase = true
+            )
+        }
+        ?.value
+        .orEmpty()
+
+
+if (
+    subscriptionInfo.isNotBlank()
+) {
+
+    it.subscription.uploadBytes =
+        Regex(
+            "upload=(\\d+)"
+        )
+            .find(
+                subscriptionInfo
+            )
+            ?.groupValues
+            ?.getOrNull(
+                1
+            )
+            ?.toLongOrNull()
+            ?: 0L
+
+
+    it.subscription.downloadBytes =
+        Regex(
+            "download=(\\d+)"
+        )
+            .find(
+                subscriptionInfo
+            )
+            ?.groupValues
+            ?.getOrNull(
+                1
+            )
+            ?.toLongOrNull()
+            ?: 0L
+
+
+    it.subscription.totalBytes =
+        Regex(
+            "total=(\\d+)"
+        )
+            .find(
+                subscriptionInfo
+            )
+            ?.groupValues
+            ?.getOrNull(
+                1
+            )
+            ?.toLongOrNull()
+            ?: 0L
+
+
+    it.subscription.expireTime =
+        Regex(
+            "expire=(\\d+)"
+        )
+            .find(
+                subscriptionInfo
+            )
+            ?.groupValues
+            ?.getOrNull(
+                1
+            )
+            ?.toLongOrNull()
+            ?: -1L
+}
 
 
         if (
