@@ -59,5 +59,8 @@ data class SubscriptionItem(
     var totalBytes: Long = 0L,
 
     var expireTime: Long = -1L,
-
+var uploadBytes: Long = 0L,
+var downloadBytes: Long = 0L,
+var totalBytes: Long = 0L,
+var expireTime: Long = -1L,
 )
