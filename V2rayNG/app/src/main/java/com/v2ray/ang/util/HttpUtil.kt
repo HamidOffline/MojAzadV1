@@ -954,14 +954,14 @@ object HttpUtil {
   /**
  * MojAzad Subscription Header Reader
  *
- * Reads:
- * subscription-userinfo
+ * Returns:
+ * Pair(
+ *   subscription content,
+ *   response headers
+ * )
  *
- * Example:
- * upload=123;
- * download=456;
- * total=789;
- * expire=123456789
+ * Used for:
+ * subscription-userinfo
  */
 fun getUrlContentWithHeaders(
     request: UrlContentRequest
@@ -1012,6 +1012,30 @@ fun getUrlContentWithHeaders(
             )
 
 
+    applyEmbeddedBasicAuthHeader(
+        url,
+        requestBuilder
+    )
+
+
+    if (
+        request.httpPort != 0 &&
+        !request.proxyUsername
+            .isNullOrBlank() &&
+        !request.proxyPassword
+            .isNullOrBlank()
+    ) {
+
+        requestBuilder.header(
+            "Proxy-Authorization",
+            Credentials.basic(
+                request.proxyUsername,
+                request.proxyPassword
+            )
+        )
+    }
+
+
     return try {
 
         client
@@ -1022,15 +1046,26 @@ fun getUrlContentWithHeaders(
             .use { response ->
 
 
+                if (
+                    !response.isSuccessful
+                ) {
+
+                    LogUtil.w(
+                        AppConfig.TAG,
+                        "Subscription header request failed code=${response.code}"
+                    )
+
+                    return "" to emptyMap()
+                }
+
+
                 val headers =
                     response.headers
                         .toMultimap()
                         .mapValues {
 
                             it.value
-                                .joinToString(
-                                    ";"
-                                )
+                                .joinToString(";")
                         }
 
 
@@ -1050,11 +1085,10 @@ fun getUrlContentWithHeaders(
 
         LogUtil.e(
             AppConfig.TAG,
-            "Subscription header request failed",
+            "Failed reading subscription headers",
             e
         )
 
         "" to emptyMap()
     }
-}  
 }
