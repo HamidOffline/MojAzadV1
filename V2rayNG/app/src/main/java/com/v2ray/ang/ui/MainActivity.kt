@@ -61,9 +61,6 @@ class MainActivity :
 
     companion object {
 
-        /*
-         * MojAzad V3 Auto Failover
-         */
         private const val AUTO_FAILOVER_PREFS =
             "mojazad_v3_preferences"
 
@@ -82,18 +79,12 @@ class MainActivity :
         private const val AUTO_FAILOVER_TIMEOUT_MS =
             45_000L
 
-        /*
-         * MojAzad V3 Dashboard
-         */
         private const val DASHBOARD_REFRESH_INTERVAL_MS =
             1_000L
 
         private const val DASHBOARD_AUTO_PING_DELAY_MS =
             1_200L
 
-        /*
-         * Server Health
-         */
         private const val HEALTH_EXCELLENT_MAX =
             200L
 
@@ -112,9 +103,6 @@ class MainActivity :
         private const val HEALTH_COLOR_OFFLINE =
             "#E53935"
 
-        /*
-         * MojAzad Theme
-         */
         private const val THEME_PREFS =
             "mojazad_theme_preferences"
 
@@ -129,7 +117,6 @@ class MainActivity :
     }
 
     private val binding by lazy {
-
         ActivityMainBinding.inflate(
             layoutInflater
         )
@@ -144,22 +131,14 @@ class MainActivity :
     private var tabMediator:
         TabLayoutMediator? = null
 
-    /*
-     * MojAzad V3 Auto Failover state
-     */
     private val autoFailoverPreferences by lazy {
-
         getSharedPreferences(
             AUTO_FAILOVER_PREFS,
             MODE_PRIVATE
         )
     }
 
-    /*
-     * MojAzad Theme state
-     */
     private val themePreferences by lazy {
-
         getSharedPreferences(
             THEME_PREFS,
             MODE_PRIVATE
@@ -181,9 +160,6 @@ class MainActivity :
     private var lastAutoFailoverAt =
         0L
 
-    /*
-     * MojAzad V3 Dashboard state
-     */
     private var dashboardJob:
         Job? = null
 
@@ -196,10 +172,6 @@ class MainActivity :
     private var dashboardSessionActive =
         false
 
-    /*
-     * Prevent multiple simultaneous manual
-     * subscription refresh operations.
-     */
     private var subscriptionRefreshInProgress =
         false
 
@@ -339,9 +311,6 @@ class MainActivity :
             )
         )
 
-        /*
-         * Subscription usage is hidden by default.
-         */
         binding.subscriptionUsage.visibility =
             View.GONE
 
@@ -357,9 +326,6 @@ class MainActivity :
         binding.viewPager.isUserInputEnabled =
             true
 
-        /*
-         * Refresh subscription card when switching tabs.
-         */
         binding.viewPager
             .registerOnPageChangeCallback(
                 object :
@@ -389,9 +355,6 @@ class MainActivity :
 
         setupAutoFailoverInfo()
 
-        /*
-         * MojAzad subscription refresh button.
-         */
         setupSubscriptionRefreshButton()
 
         resetDashboard()
@@ -412,9 +375,6 @@ class MainActivity :
 
         setupViewModel()
 
-        /*
-         * Show cached usage information only if it really exists.
-         */
         updateSubscriptionUsage()
 
         val hasValidSubscription =
@@ -445,12 +405,6 @@ class MainActivity :
         ) {
         }
     }
-
-    /*
-     * =========================================================
-     * MojAzad Theme
-     * =========================================================
-     */
 
     private fun applySavedTheme() {
 
@@ -530,7 +484,7 @@ class MainActivity :
 
     /*
      * =========================================================
-     * MojAzad Subscription Usage
+     * MojAzad Subscription Usage + Manual Refresh
      * =========================================================
      */
 
@@ -559,10 +513,6 @@ class MainActivity :
             return
         }
 
-        /*
-         * Get the subscription belonging to
-         * the currently visible tab.
-         */
         val currentGroup =
             groupPagerAdapter
                 .groups
@@ -575,9 +525,6 @@ class MainActivity :
                 ?.id
                 .orEmpty()
 
-        /*
-         * Empty ID means Default tab.
-         */
         if (
             subscriptionId.isBlank()
         ) {
@@ -615,18 +562,12 @@ class MainActivity :
         subscriptionRefreshInProgress =
             true
 
-        /*
-         * Disable button during network operation.
-         */
         binding.btnSubscriptionRefresh.isEnabled =
             false
 
         binding.btnSubscriptionRefresh.alpha =
             0.5f
 
-        /*
-         * Rotate the refresh arrow.
-         */
         binding.btnSubscriptionRefresh
             .animate()
             .rotationBy(
@@ -646,12 +587,9 @@ class MainActivity :
             try {
 
                 /*
-                 * Update ONLY the subscription
-                 * currently visible on screen.
-                 *
-                 * AngConfigManager also reads
-                 * subscription-userinfo headers
-                 * and saves usage / expiry.
+                 * 1. Download latest subscription.
+                 * 2. Save new server list.
+                 * 3. Read subscription-userinfo header.
                  */
                 val result =
                     AngConfigManager
@@ -664,10 +602,6 @@ class MainActivity :
                     0
                 ) {
 
-                    /*
-                     * Reset automatic update timer
-                     * after successful manual refresh.
-                     */
                     SubscriptionUpdater
                         .syncOne(
                             subId =
@@ -685,34 +619,45 @@ class MainActivity :
                     ) {
 
                         /*
-                         * Reload servers from storage.
+                         * Reload newly downloaded servers.
                          */
                         mainViewModel
                             .reloadServerList()
 
-                        /*
-                         * Refresh number shown in tab title.
-                         */
                         refreshGroupTabTitles(
                             true
                         )
 
                         /*
-                         * Refresh traffic quota,
-                         * percentage and remaining days.
+                         * Refresh traffic and expiry information.
                          */
                         updateSubscriptionUsage()
 
+                        /*
+                         * IMPORTANT:
+                         *
+                         * Test all refreshed servers again.
+                         *
+                         * autoConnectAfterFinish=true means the
+                         * existing MainViewModel best-server logic
+                         * will run after the tests finish.
+                         *
+                         * The autoConnectBestServerAction observer
+                         * below will then start/restart VPN using
+                         * the server selected by that logic.
+                         */
+                        mainViewModel
+                            .testAllRealPing(
+                                autoConnectAfterFinish =
+                                    true
+                            )
+
                         toast(
-                            "اشتراک بروزرسانی شد"
+                            "اشتراک بروزرسانی شد؛ در حال بررسی بهترین سرور..."
                         )
 
                     } else {
 
-                        /*
-                         * Keep old cached data visible
-                         * if network refresh failed.
-                         */
                         updateSubscriptionUsage()
 
                         toast(
@@ -779,12 +724,6 @@ class MainActivity :
             return
         }
 
-        /*
-         * Determine which subscription tab is currently visible.
-         *
-         * Default group normally has an empty ID, therefore the
-         * card will be hidden while Default is selected.
-         */
         val currentGroup =
             groupPagerAdapter
                 .groups
@@ -848,10 +787,6 @@ class MainActivity :
         val expireTime =
             subscription.expireTime
 
-        /*
-         * If subscription-userinfo was not supplied
-         * there is no meaningful usage card.
-         */
         val hasUsageInformation =
             subscription.uploadBytes >
                 0L ||
@@ -884,9 +819,6 @@ class MainActivity :
         binding.subscriptionUsage.visibility =
             View.VISIBLE
 
-        /*
-         * Traffic usage
-         */
         if (
             totalBytes >
             0L
@@ -946,9 +878,6 @@ class MainActivity :
                 }
         }
 
-        /*
-         * Expiration
-         */
         if (
             expireTime >
             0L
