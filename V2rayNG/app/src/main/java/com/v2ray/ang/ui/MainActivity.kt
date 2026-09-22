@@ -301,8 +301,8 @@ class MainActivity :
 
                 refreshGroupTabTitles(
                     true
-                    updateSubscriptionUsage()
                 )
+                updateSubscriptionUsage()
             }
         }
 
