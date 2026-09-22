@@ -302,6 +302,7 @@ class MainActivity :
                 refreshGroupTabTitles(
                     true
                 )
+                
                 updateSubscriptionUsage()
             }
         }
