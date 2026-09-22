@@ -475,7 +475,116 @@ class MainActivity :
      * =========================================================
      * MojAzad V3 Dashboard
      * =========================================================
-     */
+     */private fun updateSubscriptionUsage() {
+
+    val subscriptions =
+        MmkvManager
+            .decodeSubscriptions()
+
+
+    val subscription =
+        subscriptions
+            .firstOrNull {
+                it.subscription.url.isNotBlank()
+            }
+            ?.subscription
+            ?: return
+
+
+    val usedBytes =
+        subscription.downloadBytes +
+        subscription.uploadBytes
+
+
+    val totalBytes =
+        subscription.totalBytes
+
+
+    if (
+        totalBytes > 0
+    ) {
+
+        val percent =
+            (
+                usedBytes * 100L /
+                    totalBytes
+                )
+                .toInt()
+                .coerceIn(
+                    0,
+                    100
+                )
+
+
+        binding.subscriptionUsageProgress
+            .progress =
+            percent
+
+
+        binding.tvSubscriptionUsage.text =
+            "${
+                formatTrafficBytes(
+                    usedBytes
+                )
+            } / ${
+                formatTrafficBytes(
+                    totalBytes
+                )
+            }"
+
+
+    } else {
+
+        binding.subscriptionUsageProgress
+            .progress =
+            0
+
+
+        binding.tvSubscriptionUsage.text =
+            "${
+                formatTrafficBytes(
+                    usedBytes
+                )
+            } / نامحدود"
+    }
+
+
+    if (
+        subscription.expireTime > 0
+    ) {
+
+        val now =
+            System.currentTimeMillis() /
+                1000L
+
+
+        val days =
+            (
+                subscription.expireTime -
+                    now
+                ) /
+                86400L
+
+
+        binding.tvSubscriptionDays.text =
+            if (
+                days > 0
+            ) {
+
+                "$days روز باقی مانده"
+
+            } else {
+
+                "منقضی شده"
+            }
+
+
+    } else {
+
+        binding.tvSubscriptionDays.text =
+            "بدون تاریخ انقضا"
+    }
+}
 
     private fun handleDashboardConnectionState(
         isRunning: Boolean
