@@ -478,7 +478,9 @@ class MainActivity :
      * =========================================================
      * MojAzad V3 Dashboard
      * =========================================================
-     */private fun updateSubscriptionUsage() {
+     */
+        
+        private fun updateSubscriptionUsage() {
 
     val subscriptions =
         MmkvManager
