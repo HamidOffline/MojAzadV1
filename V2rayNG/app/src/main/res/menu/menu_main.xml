@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>  <menu xmlns:android="http://schemas.android.com/apk/res/android"  
     xmlns:app="http://schemas.android.com/apk/res-auto">  
+    <item
+    android:id="@+id/theme_toggle"
+    android:icon="@drawable/ic_dark_mode_24"
+    android:title="تغییر حالت نمایش"
+    app:showAsAction="always" />
     <item  
         android:id="@+id/search_view"  
         android:icon="@drawable/ic_outline_filter_alt_24"  
