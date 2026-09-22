@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.tabs.TabLayoutMediator
 import com.v2ray.ang.AppConfig
@@ -128,12 +129,14 @@ class MainActivity :
     }
 
     private val binding by lazy {
+
         ActivityMainBinding.inflate(
             layoutInflater
         )
     }
 
-    val mainViewModel: MainViewModel by viewModels()
+    val mainViewModel:
+        MainViewModel by viewModels()
 
     private lateinit var groupPagerAdapter:
         GroupPagerAdapter
@@ -302,7 +305,7 @@ class MainActivity :
                 refreshGroupTabTitles(
                     true
                 )
-                
+
                 updateSubscriptionUsage()
             }
         }
@@ -329,6 +332,12 @@ class MainActivity :
             )
         )
 
+        /*
+         * Subscription usage is hidden by default.
+         */
+        binding.subscriptionUsage.visibility =
+            View.GONE
+
         groupPagerAdapter =
             GroupPagerAdapter(
                 this,
@@ -341,6 +350,30 @@ class MainActivity :
         binding.viewPager.isUserInputEnabled =
             true
 
+        /*
+         * Refresh subscription card when switching tabs.
+         */
+        binding.viewPager
+            .registerOnPageChangeCallback(
+                object :
+                    ViewPager2.OnPageChangeCallback() {
+
+                    override fun onPageSelected(
+                        position: Int
+                    ) {
+
+                        super.onPageSelected(
+                            position
+                        )
+
+                        binding.viewPager.post {
+
+                            updateSubscriptionUsage()
+                        }
+                    }
+                }
+            )
+
         setupNavigationDrawer()
 
         setupNavigationVersion()
@@ -351,19 +384,26 @@ class MainActivity :
 
         resetDashboard()
 
-        binding.fab.setOnClickListener {
+        binding.fab
+            .setOnClickListener {
 
-            handleFabAction()
-        }
+                handleFabAction()
+            }
 
-        binding.layoutTest.setOnClickListener {
+        binding.layoutTest
+            .setOnClickListener {
 
-            handleLayoutTestClick()
-        }
+                handleLayoutTestClick()
+            }
 
         setupGroupTab()
 
         setupViewModel()
+
+        /*
+         * Show cached usage information only if it really exists.
+         */
+        updateSubscriptionUsage()
 
         val hasValidSubscription =
             MmkvManager
@@ -375,17 +415,18 @@ class MainActivity :
                 }
 
         if (
-    !hasValidSubscription
-) {
+            !hasValidSubscription
+        ) {
 
-    showMojAzadActivationDialog()
+            binding.subscriptionUsage.visibility =
+                View.GONE
 
-} else {
+            showMojAzadActivationDialog()
 
-    refreshMojAzadSubscription()
+        } else {
 
-    updateSubscriptionUsage()
-}
+            refreshMojAzadSubscription()
+        }
 
         checkAndRequestPermission(
             PermissionType.POST_NOTIFICATIONS
@@ -477,120 +518,241 @@ class MainActivity :
 
     /*
      * =========================================================
+     * MojAzad Subscription Usage
+     * =========================================================
+     */
+
+    private fun updateSubscriptionUsage() {
+
+        if (
+            !::groupPagerAdapter.isInitialized
+        ) {
+
+            binding.subscriptionUsage.visibility =
+                View.GONE
+
+            return
+        }
+
+        /*
+         * Determine which subscription tab is currently visible.
+         *
+         * Default group normally has an empty ID, therefore the
+         * card will be hidden while Default is selected.
+         */
+        val currentGroup =
+            groupPagerAdapter
+                .groups
+                .getOrNull(
+                    binding.viewPager.currentItem
+                )
+
+        val currentSubscriptionId =
+            currentGroup
+                ?.id
+                .orEmpty()
+
+        if (
+            currentSubscriptionId.isBlank()
+        ) {
+
+            binding.subscriptionUsage.visibility =
+                View.GONE
+
+            return
+        }
+
+        val subscription =
+            MmkvManager
+                .decodeSubscriptions()
+                .firstOrNull {
+
+                    it.guid ==
+                        currentSubscriptionId &&
+                        it.subscription.url.isNotBlank()
+                }
+                ?.subscription
+
+        if (
+            subscription == null
+        ) {
+
+            binding.subscriptionUsage.visibility =
+                View.GONE
+
+            return
+        }
+
+        val usedBytes =
+            (
+                subscription.uploadBytes +
+                    subscription.downloadBytes
+                )
+                .coerceAtLeast(
+                    0L
+                )
+
+        val totalBytes =
+            subscription.totalBytes
+                .coerceAtLeast(
+                    0L
+                )
+
+        val expireTime =
+            subscription.expireTime
+
+        /*
+         * Important:
+         *
+         * If subscription-userinfo was not supplied by server,
+         * all these values remain zero/-1.
+         *
+         * In that case no fake 0 GB / 0 GB card is shown.
+         */
+        val hasUsageInformation =
+            subscription.uploadBytes > 0L ||
+                subscription.downloadBytes > 0L ||
+                totalBytes > 0L ||
+                expireTime > 0L
+
+        if (
+            !hasUsageInformation
+        ) {
+
+            binding.subscriptionUsage.visibility =
+                View.GONE
+
+            binding.subscriptionUsageProgress.progress =
+                0
+
+            binding.tvSubscriptionUsage.text =
+                ""
+
+            binding.tvSubscriptionDays.text =
+                ""
+
+            return
+        }
+
+        binding.subscriptionUsage.visibility =
+            View.VISIBLE
+
+        /*
+         * Traffic usage
+         */
+        if (
+            totalBytes > 0L
+        ) {
+
+            val safeUsedBytes =
+                usedBytes.coerceAtMost(
+                    totalBytes
+                )
+
+            val percent =
+                (
+                    safeUsedBytes *
+                        100L /
+                        totalBytes
+                    )
+                    .toInt()
+                    .coerceIn(
+                        0,
+                        100
+                    )
+
+            binding.subscriptionUsageProgress.progress =
+                percent
+
+            binding.tvSubscriptionUsage.text =
+                "${
+                    formatTrafficBytes(
+                        usedBytes
+                    )
+                } / ${
+                    formatTrafficBytes(
+                        totalBytes
+                    )
+                }"
+
+        } else {
+
+            /*
+             * Server supplied usage/expiry but no traffic limit.
+             */
+            binding.subscriptionUsageProgress.progress =
+                0
+
+            binding.tvSubscriptionUsage.text =
+                if (
+                    usedBytes > 0L
+                ) {
+
+                    "${
+                        formatTrafficBytes(
+                            usedBytes
+                        )
+                    } / نامحدود"
+
+                } else {
+
+                    "نامحدود"
+                }
+        }
+
+        /*
+         * Expiration
+         */
+        if (
+            expireTime > 0L
+        ) {
+
+            val nowSeconds =
+                System.currentTimeMillis() /
+                    1000L
+
+            val remainingSeconds =
+                expireTime -
+                    nowSeconds
+
+            binding.tvSubscriptionDays.text =
+                if (
+                    remainingSeconds >
+                    0L
+                ) {
+
+                    /*
+                     * Round partial day upward.
+                     *
+                     * Example:
+                     * 1 day and 2 hours -> 2 days remaining.
+                     */
+                    val remainingDays =
+                        (
+                            remainingSeconds +
+                                86_399L
+                            ) /
+                            86_400L
+
+                    "$remainingDays روز مانده"
+
+                } else {
+
+                    "منقضی شده"
+                }
+
+        } else {
+
+            binding.tvSubscriptionDays.text =
+                ""
+        }
+    }
+
+    /*
+     * =========================================================
      * MojAzad V3 Dashboard
      * =========================================================
      */
-        
-        private fun updateSubscriptionUsage() {
-
-    val subscriptions =
-        MmkvManager
-            .decodeSubscriptions()
-
-
-    val subscription =
-        subscriptions
-            .firstOrNull {
-                it.subscription.url.isNotBlank()
-            }
-            ?.subscription
-            ?: return
-
-
-    val usedBytes =
-        subscription.downloadBytes +
-        subscription.uploadBytes
-
-
-    val totalBytes =
-        subscription.totalBytes
-
-
-    if (
-        totalBytes > 0
-    ) {
-
-        val percent =
-            (
-                usedBytes * 100L /
-                    totalBytes
-                )
-                .toInt()
-                .coerceIn(
-                    0,
-                    100
-                )
-
-
-        binding.subscriptionUsageProgress
-            .progress =
-            percent
-
-
-        binding.tvSubscriptionUsage.text =
-            "${
-                formatTrafficBytes(
-                    usedBytes
-                )
-            } / ${
-                formatTrafficBytes(
-                    totalBytes
-                )
-            }"
-
-
-    } else {
-
-        binding.subscriptionUsageProgress
-            .progress =
-            0
-
-
-        binding.tvSubscriptionUsage.text =
-            "${
-                formatTrafficBytes(
-                    usedBytes
-                )
-            } / نامحدود"
-    }
-
-
-    if (
-        subscription.expireTime > 0
-    ) {
-
-        val now =
-            System.currentTimeMillis() /
-                1000L
-
-
-        val days =
-            (
-                subscription.expireTime -
-                    now
-                ) /
-                86400L
-
-
-        binding.tvSubscriptionDays.text =
-            if (
-                days > 0
-            ) {
-
-                "$days روز باقی مانده"
-
-            } else {
-
-                "منقضی شده"
-            }
-
-
-    } else {
-
-        binding.tvSubscriptionDays.text =
-            "بدون تاریخ انقضا"
-    }
-}
 
     private fun handleDashboardConnectionState(
         isRunning: Boolean
@@ -1408,6 +1570,12 @@ class MainActivity :
         }
     }
 
+    /*
+     * =========================================================
+     * MojAzad Subscription
+     * =========================================================
+     */
+
     private fun handleNewMojAzadSubscription(
         subId: String
     ) {
@@ -1444,6 +1612,8 @@ class MainActivity :
                     refreshGroupTabTitles(
                         true
                     )
+
+                    updateSubscriptionUsage()
 
                     if (
                         hasServers
@@ -1492,6 +1662,8 @@ class MainActivity :
                     refreshGroupTabTitles(
                         true
                     )
+
+                    updateSubscriptionUsage()
 
                     hideLoading()
 
@@ -1542,7 +1714,8 @@ class MainActivity :
                 }
 
         val subscriptionNumber =
-            existingSubscriptionCount + 1
+            existingSubscriptionCount +
+                1
 
         val subId =
             Utils.getUuid()
@@ -1552,7 +1725,8 @@ class MainActivity :
 
                 remarks =
                     if (
-                        subscriptionNumber <= 1
+                        subscriptionNumber <=
+                        1
                     ) {
 
                         "MojAzad"
@@ -1590,6 +1764,9 @@ class MainActivity :
     }
 
     private fun showMojAzadActivationDialog() {
+
+        binding.subscriptionUsage.visibility =
+            View.GONE
 
         val input =
             AppCompatEditText(this).apply {
@@ -1696,10 +1873,11 @@ class MainActivity :
                                 60L
                         }
 
-                    MmkvManager.encodeSubscription(
-                        subId,
-                        subscription
-                    )
+                    MmkvManager
+                        .encodeSubscription(
+                            subId,
+                            subscription
+                        )
 
                     dialog.dismiss()
 
@@ -1716,12 +1894,14 @@ class MainActivity :
                                     .updateConfigViaSubAll()
 
                             if (
-                                result.successCount > 0
+                                result.successCount >
+                                0
                             ) {
 
-                                SubscriptionUpdater.syncOne(
-                                    subId = subId
-                                )
+                                SubscriptionUpdater
+                                    .syncOne(
+                                        subId = subId
+                                    )
 
                                 withContext(
                                     Dispatchers.Main
@@ -1738,9 +1918,12 @@ class MainActivity :
                                         true
                                     )
 
+                                    updateSubscriptionUsage()
+
                                     mainViewModel
                                         .testAllRealPing(
-                                            autoConnectAfterFinish = true
+                                            autoConnectAfterFinish =
+                                                true
                                         )
 
                                     hideLoading()
@@ -1760,6 +1943,11 @@ class MainActivity :
                                 withContext(
                                     Dispatchers.Main
                                 ) {
+
+                                    binding
+                                        .subscriptionUsage
+                                        .visibility =
+                                        View.GONE
 
                                     hideLoading()
 
@@ -1789,6 +1977,11 @@ class MainActivity :
                             withContext(
                                 Dispatchers.Main
                             ) {
+
+                                binding
+                                    .subscriptionUsage
+                                    .visibility =
+                                    View.GONE
 
                                 hideLoading()
 
@@ -1827,7 +2020,8 @@ class MainActivity :
                 ) {
 
                     if (
-                        result.configCount > 0
+                        result.configCount >
+                        0
                     ) {
 
                         setupGroupTab()
@@ -1839,15 +2033,24 @@ class MainActivity :
                             true
                         )
 
+                        /*
+                         * Header values have already been saved
+                         * by AngConfigManager at this point.
+                         */
+                        updateSubscriptionUsage()
+
                         mainViewModel
                             .testAllRealPing(
-                                autoConnectAfterFinish = true
+                                autoConnectAfterFinish =
+                                    true
                             )
 
                     } else {
 
                         mainViewModel
                             .reloadServerList()
+
+                        updateSubscriptionUsage()
                     }
 
                     hideLoading()
@@ -1869,6 +2072,8 @@ class MainActivity :
 
                     mainViewModel
                         .reloadServerList()
+
+                    updateSubscriptionUsage()
 
                     hideLoading()
                 }
@@ -2000,7 +2205,8 @@ class MainActivity :
             ) { shouldConnect ->
 
                 if (
-                    shouldConnect != true
+                    shouldConnect !=
+                    true
                 ) {
 
                     return@observe
@@ -2029,7 +2235,8 @@ class MainActivity :
                     restartV2Ray()
 
                 } else if (
-                    SettingsManager.isVpnMode()
+                    SettingsManager
+                        .isVpnMode()
                 ) {
 
                     val intent =
@@ -2038,7 +2245,8 @@ class MainActivity :
                         )
 
                     if (
-                        intent == null
+                        intent ==
+                        null
                     ) {
 
                         startV2Ray()
@@ -2116,14 +2324,17 @@ class MainActivity :
                 }
                 .takeIf {
 
-                    it >= 0
+                    it >=
+                        0
                 }
                 ?: (
-                    groups.size - 1
-                )
+                    groups.size -
+                        1
+                    )
 
         if (
-            targetIndex >= 0
+            targetIndex >=
+            0
         ) {
 
             binding.viewPager
@@ -2134,11 +2345,17 @@ class MainActivity :
         }
 
         binding.tabGroup.isVisible =
-            groups.size > 1
+            groups.size >
+                1
 
         refreshGroupTabTitles(
             true
         )
+
+        binding.viewPager.post {
+
+            updateSubscriptionUsage()
+        }
     }
 
     fun refreshGroupTabTitles(
@@ -2188,7 +2405,8 @@ class MainActivity :
                         }
 
                 if (
-                    tabIndex >= 0
+                    tabIndex >=
+                    0
                 ) {
 
                     val count =
@@ -2238,7 +2456,8 @@ class MainActivity :
                 )
 
         } else if (
-            SettingsManager.isVpnMode()
+            SettingsManager
+                .isVpnMode()
         ) {
 
             userRequestedStop =
@@ -2250,7 +2469,8 @@ class MainActivity :
                 )
 
             if (
-                intent == null
+                intent ==
+                null
             ) {
 
                 startV2Ray()
@@ -2380,7 +2600,8 @@ class MainActivity :
                     )
                 )
 
-            binding.fab.contentDescription =
+            binding.fab
+                .contentDescription =
                 "Connecting"
 
             return
@@ -2444,6 +2665,8 @@ class MainActivity :
 
         super.onResume()
 
+        updateSubscriptionUsage()
+
         if (
             mainViewModel
                 .isRunning
@@ -2492,8 +2715,7 @@ class MainActivity :
             searchView
                 .setOnQueryTextListener(
                     object :
-                        SearchView
-                            .OnQueryTextListener {
+                        SearchView.OnQueryTextListener {
 
                         override fun onQueryTextSubmit(
                             query: String?
@@ -2834,7 +3056,8 @@ class MainActivity :
                 scanResult ->
 
             if (
-                scanResult != null
+                scanResult !=
+                null
             ) {
 
                 importBatchConfig(
@@ -2873,16 +3096,16 @@ class MainActivity :
                 !clipboard.contains(
                     "\n"
                 ) &&
-                (
-                    clipboard.startsWith(
-                        "https://",
-                        ignoreCase = true
-                    ) ||
-                    clipboard.startsWith(
-                        "http://",
-                        ignoreCase = true
-                    )
-                )
+                    (
+                        clipboard.startsWith(
+                            "https://",
+                            ignoreCase = true
+                        ) ||
+                            clipboard.startsWith(
+                                "http://",
+                                ignoreCase = true
+                            )
+                        )
 
             if (
                 isSingleHttpUrl
@@ -2975,7 +3198,8 @@ class MainActivity :
 
                     when {
 
-                        count > 0 -> {
+                        count >
+                            0 -> {
 
                             toast(
                                 getString(
@@ -2991,9 +3215,12 @@ class MainActivity :
                             refreshGroupTabTitles()
                         }
 
-                        countSub > 0 -> {
+                        countSub >
+                            0 -> {
 
                             setupGroupTab()
+
+                            updateSubscriptionUsage()
                         }
 
                         else -> {
@@ -3078,7 +3305,8 @@ class MainActivity :
                 if (
                     result.successCount +
                     result.failureCount +
-                    result.skipCount == 0
+                    result.skipCount ==
+                    0
                 ) {
 
                     toast(
@@ -3087,9 +3315,11 @@ class MainActivity :
                     )
 
                 } else if (
-                    result.successCount > 0 &&
+                    result.successCount >
+                    0 &&
                     result.failureCount +
-                    result.skipCount == 0
+                    result.skipCount ==
+                    0
                 ) {
 
                     toast(
@@ -3115,7 +3345,8 @@ class MainActivity :
                 }
 
                 if (
-                    result.configCount > 0
+                    result.configCount >
+                    0
                 ) {
 
                     mainViewModel
@@ -3123,6 +3354,8 @@ class MainActivity :
 
                     refreshGroupTabTitles()
                 }
+
+                updateSubscriptionUsage()
 
                 hideLoading()
             }
@@ -3148,7 +3381,8 @@ class MainActivity :
             ) {
 
                 if (
-                    ret > 0
+                    ret >
+                    0
                 ) {
 
                     toast(
@@ -3199,6 +3433,8 @@ class MainActivity :
                             .reloadServerList()
 
                         refreshGroupTabTitles()
+
+                        updateSubscriptionUsage()
 
                         toast(
                             getString(
@@ -3344,7 +3580,8 @@ class MainActivity :
         launchFileChooser { uri ->
 
             if (
-                uri == null
+                uri ==
+                null
             ) {
 
                 return@launchFileChooser
@@ -3415,7 +3652,8 @@ class MainActivity :
                 }
 
         if (
-            targetGroupIndex < 0
+            targetGroupIndex <
+            0
         ) {
 
             toast(
@@ -3475,8 +3713,10 @@ class MainActivity :
                 as? GroupServerFragment
 
         if (
-            fragment?.isAdded == true &&
-            fragment.view != null
+            fragment?.isAdded ==
+            true &&
+            fragment.view !=
+            null
         ) {
 
             fragment
