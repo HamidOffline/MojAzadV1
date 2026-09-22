@@ -524,8 +524,165 @@ object AngConfigManager {
      * @param it The subscription item.
      * @return Subscription update result.
      */
-    fun updateConfigViaSub(it: SubscriptionCache): SubscriptionUpdateResult {
-        try {
+    fun updateConfigViaSub(
+    it: SubscriptionCache
+): SubscriptionUpdateResult {
+
+    try {
+
+        if (
+            !it.subscription.enabled
+        ) {
+            return SubscriptionUpdateResult(
+                skipCount = 1
+            )
+        }
+
+
+        if (
+            TextUtils.isEmpty(it.guid) ||
+            TextUtils.isEmpty(it.subscription.remarks) ||
+            TextUtils.isEmpty(it.subscription.url)
+        ) {
+            return SubscriptionUpdateResult(
+                skipCount = 1
+            )
+        }
+
+
+        val url =
+            HttpUtil.toIdnUrl(
+                it.subscription.url
+            )
+
+
+        if (
+            !Utils.isValidUrl(url)
+        ) {
+            return SubscriptionUpdateResult(
+                failureCount = 1
+            )
+        }
+
+
+        if (
+            !it.subscription.allowInsecureUrl &&
+            !Utils.isValidSubUrl(url)
+        ) {
+            return SubscriptionUpdateResult(
+                failureCount = 1
+            )
+        }
+
+
+        val request =
+            UrlContentRequest(
+                url = url,
+                userAgent = it.subscription.userAgent,
+                timeout = 15000,
+                httpPort = SettingsManager.getHttpPort(),
+                proxyUsername = SettingsManager.getSocksUsername(),
+                proxyPassword = SettingsManager.getSocksPassword()
+            )
+
+
+        var configText =
+            try {
+
+                HttpUtil.getUrlContentWithUserAgent(
+                    request
+                )
+
+            } catch (
+                e: Exception
+            ) {
+
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "Subscription download failed",
+                    e
+                )
+
+                ""
+            }
+
+
+        if (
+            configText.isEmpty()
+        ) {
+
+            return SubscriptionUpdateResult(
+                failureCount = 1
+            )
+        }
+
+
+        /*
+         * MojAzad Subscription Usage
+         *
+         * فعلاً اطلاعات Header بعداً از HttpUtil
+         * اضافه می‌شود.
+         *
+         * این قسمت آماده نگهداری اطلاعات است.
+         */
+
+
+        val count =
+            parseConfigViaSub(
+                configText,
+                it.guid,
+                false
+            )
+
+
+        if (
+            count > 0
+        ) {
+
+            it.subscription.lastUpdated =
+                System.currentTimeMillis()
+
+
+            MmkvManager.encodeSubscription(
+                it.guid,
+                it.subscription
+            )
+
+
+            LogUtil.i(
+                AppConfig.TAG,
+                "Subscription updated: ${it.subscription.remarks}, $count configs"
+            )
+
+
+            return SubscriptionUpdateResult(
+                configCount = count,
+                successCount = 1
+            )
+
+        }
+
+
+        return SubscriptionUpdateResult(
+            failureCount = 1
+        )
+
+
+    } catch (
+        e: Exception
+    ) {
+
+        LogUtil.e(
+            AppConfig.TAG,
+            "Failed to update config via subscription",
+            e
+        )
+
+        return SubscriptionUpdateResult(
+            failureCount = 1
+        )
+    }
+}
             // Check if disabled
             if (!it.subscription.enabled) {
                 return SubscriptionUpdateResult(skipCount = 1)
