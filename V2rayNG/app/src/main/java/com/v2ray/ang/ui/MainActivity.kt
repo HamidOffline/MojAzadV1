@@ -196,6 +196,13 @@ class MainActivity :
     private var dashboardSessionActive =
         false
 
+    /*
+     * Prevent multiple simultaneous manual
+     * subscription refresh operations.
+     */
+    private var subscriptionRefreshInProgress =
+        false
+
     private val requestVpnPermission =
         registerForActivityResult(
             ActivityResultContracts
@@ -382,6 +389,11 @@ class MainActivity :
 
         setupAutoFailoverInfo()
 
+        /*
+         * MojAzad subscription refresh button.
+         */
+        setupSubscriptionRefreshButton()
+
         resetDashboard()
 
         binding.fab
@@ -522,6 +534,239 @@ class MainActivity :
      * =========================================================
      */
 
+    private fun setupSubscriptionRefreshButton() {
+
+        binding.btnSubscriptionRefresh
+            .setOnClickListener {
+
+                refreshCurrentSubscription()
+            }
+    }
+
+    private fun refreshCurrentSubscription() {
+
+        if (
+            subscriptionRefreshInProgress
+        ) {
+
+            return
+        }
+
+        if (
+            !::groupPagerAdapter.isInitialized
+        ) {
+
+            return
+        }
+
+        /*
+         * Get the subscription belonging to
+         * the currently visible tab.
+         */
+        val currentGroup =
+            groupPagerAdapter
+                .groups
+                .getOrNull(
+                    binding.viewPager.currentItem
+                )
+
+        val subscriptionId =
+            currentGroup
+                ?.id
+                .orEmpty()
+
+        /*
+         * Empty ID means Default tab.
+         */
+        if (
+            subscriptionId.isBlank()
+        ) {
+
+            toast(
+                "این بخش اشتراک ندارد"
+            )
+
+            return
+        }
+
+        val subscriptionCache =
+            MmkvManager
+                .decodeSubscriptions()
+                .firstOrNull {
+
+                    it.guid ==
+                        subscriptionId &&
+                        it.subscription.url
+                            .isNotBlank()
+                }
+
+        if (
+            subscriptionCache ==
+            null
+        ) {
+
+            toast(
+                "اشتراک پیدا نشد"
+            )
+
+            return
+        }
+
+        subscriptionRefreshInProgress =
+            true
+
+        /*
+         * Disable button during network operation.
+         */
+        binding.btnSubscriptionRefresh.isEnabled =
+            false
+
+        binding.btnSubscriptionRefresh.alpha =
+            0.5f
+
+        /*
+         * Rotate the refresh arrow.
+         */
+        binding.btnSubscriptionRefresh
+            .animate()
+            .rotationBy(
+                360f
+            )
+            .setDuration(
+                700L
+            )
+            .start()
+
+        showLoading()
+
+        lifecycleScope.launch(
+            Dispatchers.IO
+        ) {
+
+            try {
+
+                /*
+                 * Update ONLY the subscription
+                 * currently visible on screen.
+                 *
+                 * AngConfigManager also reads
+                 * subscription-userinfo headers
+                 * and saves usage / expiry.
+                 */
+                val result =
+                    AngConfigManager
+                        .updateConfigViaSub(
+                            subscriptionCache
+                        )
+
+                if (
+                    result.successCount >
+                    0
+                ) {
+
+                    /*
+                     * Reset automatic update timer
+                     * after successful manual refresh.
+                     */
+                    SubscriptionUpdater
+                        .syncOne(
+                            subId =
+                                subscriptionId
+                        )
+                }
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    if (
+                        result.successCount >
+                        0
+                    ) {
+
+                        /*
+                         * Reload servers from storage.
+                         */
+                        mainViewModel
+                            .reloadServerList()
+
+                        /*
+                         * Refresh number shown in tab title.
+                         */
+                        refreshGroupTabTitles(
+                            true
+                        )
+
+                        /*
+                         * Refresh traffic quota,
+                         * percentage and remaining days.
+                         */
+                        updateSubscriptionUsage()
+
+                        toast(
+                            "اشتراک بروزرسانی شد"
+                        )
+
+                    } else {
+
+                        /*
+                         * Keep old cached data visible
+                         * if network refresh failed.
+                         */
+                        updateSubscriptionUsage()
+
+                        toast(
+                            "بروزرسانی اشتراک انجام نشد"
+                        )
+                    }
+
+                    binding.btnSubscriptionRefresh.isEnabled =
+                        true
+
+                    binding.btnSubscriptionRefresh.alpha =
+                        1f
+
+                    hideLoading()
+
+                    subscriptionRefreshInProgress =
+                        false
+                }
+
+            } catch (
+                e: Exception
+            ) {
+
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "Manual subscription refresh failed",
+                    e
+                )
+
+                withContext(
+                    Dispatchers.Main
+                ) {
+
+                    updateSubscriptionUsage()
+
+                    binding.btnSubscriptionRefresh.isEnabled =
+                        true
+
+                    binding.btnSubscriptionRefresh.alpha =
+                        1f
+
+                    hideLoading()
+
+                    subscriptionRefreshInProgress =
+                        false
+
+                    toast(
+                        "بروزرسانی اشتراک انجام نشد"
+                    )
+                }
+            }
+        }
+    }
+
     private fun updateSubscriptionUsage() {
 
         if (
@@ -569,12 +814,14 @@ class MainActivity :
 
                     it.guid ==
                         currentSubscriptionId &&
-                        it.subscription.url.isNotBlank()
+                        it.subscription.url
+                            .isNotBlank()
                 }
                 ?.subscription
 
         if (
-            subscription == null
+            subscription ==
+            null
         ) {
 
             binding.subscriptionUsage.visibility =
@@ -602,18 +849,18 @@ class MainActivity :
             subscription.expireTime
 
         /*
-         * Important:
-         *
-         * If subscription-userinfo was not supplied by server,
-         * all these values remain zero/-1.
-         *
-         * In that case no fake 0 GB / 0 GB card is shown.
+         * If subscription-userinfo was not supplied
+         * there is no meaningful usage card.
          */
         val hasUsageInformation =
-            subscription.uploadBytes > 0L ||
-                subscription.downloadBytes > 0L ||
-                totalBytes > 0L ||
-                expireTime > 0L
+            subscription.uploadBytes >
+                0L ||
+                subscription.downloadBytes >
+                0L ||
+                totalBytes >
+                0L ||
+                expireTime >
+                0L
 
         if (
             !hasUsageInformation
@@ -641,7 +888,8 @@ class MainActivity :
          * Traffic usage
          */
         if (
-            totalBytes > 0L
+            totalBytes >
+            0L
         ) {
 
             val safeUsedBytes =
@@ -677,15 +925,13 @@ class MainActivity :
 
         } else {
 
-            /*
-             * Server supplied usage/expiry but no traffic limit.
-             */
             binding.subscriptionUsageProgress.progress =
                 0
 
             binding.tvSubscriptionUsage.text =
                 if (
-                    usedBytes > 0L
+                    usedBytes >
+                    0L
                 ) {
 
                     "${
@@ -704,7 +950,8 @@ class MainActivity :
          * Expiration
          */
         if (
-            expireTime > 0L
+            expireTime >
+            0L
         ) {
 
             val nowSeconds =
@@ -721,12 +968,6 @@ class MainActivity :
                     0L
                 ) {
 
-                    /*
-                     * Round partial day upward.
-                     *
-                     * Example:
-                     * 1 day and 2 hours -> 2 days remaining.
-                     */
                     val remainingDays =
                         (
                             remainingSeconds +
@@ -846,7 +1087,8 @@ class MainActivity :
     private fun startDashboardTicker() {
 
         if (
-            dashboardJob?.isActive == true
+            dashboardJob?.isActive ==
+            true
         ) {
 
             return
@@ -936,7 +1178,8 @@ class MainActivity :
                     ?: 0L
 
             if (
-                cachedDelay != 0L
+                cachedDelay !=
+                0L
             ) {
 
                 updateDashboardHealth(
@@ -1010,10 +1253,12 @@ class MainActivity :
             1024.0
 
         val mb =
-            kb * 1024.0
+            kb *
+                1024.0
 
         val gb =
-            mb * 1024.0
+            mb *
+                1024.0
 
         return when {
 
@@ -1023,7 +1268,8 @@ class MainActivity :
                 String.format(
                     Locale.US,
                     "%.2f GB",
-                    safeBytes / gb
+                    safeBytes /
+                        gb
                 )
             }
 
@@ -1033,7 +1279,8 @@ class MainActivity :
                 String.format(
                     Locale.US,
                     "%.1f MB",
-                    safeBytes / mb
+                    safeBytes /
+                        mb
                 )
             }
 
@@ -1043,7 +1290,8 @@ class MainActivity :
                 String.format(
                     Locale.US,
                     "%.1f KB",
-                    safeBytes / kb
+                    safeBytes /
+                        kb
                 )
             }
 
@@ -1160,7 +1408,8 @@ class MainActivity :
                 ?.toLongOrNull()
 
         if (
-            delay != null
+            delay !=
+            null
         ) {
 
             updateDashboardHealth(
@@ -1172,9 +1421,11 @@ class MainActivity :
             result
                 .lines()
                 .map {
+
                     it.trim()
                 }
                 .filter {
+
                     it.isNotBlank()
                 }
 
@@ -1201,17 +1452,18 @@ class MainActivity :
             }
 
         } else if (
-            delay == null &&
+            delay ==
+            null &&
             (
                 result.contains(
                     "error",
                     ignoreCase = true
                 ) ||
-                result.contains(
-                    "fail",
-                    ignoreCase = true
+                    result.contains(
+                        "fail",
+                        ignoreCase = true
+                    )
                 )
-            )
         ) {
 
             binding.tvDashboardPing.text =
@@ -1384,7 +1636,9 @@ class MainActivity :
                 "غیرفعال"
             }
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(
+            this
+        )
             .setTitle(
                 "Auto Failover"
             )
@@ -1551,7 +1805,8 @@ class MainActivity :
 
             mainViewModel
                 .testAllRealPing(
-                    autoConnectAfterFinish = true
+                    autoConnectAfterFinish =
+                        true
                 )
 
             delay(
@@ -1621,7 +1876,8 @@ class MainActivity :
 
                         mainViewModel
                             .testAllRealPing(
-                                autoConnectAfterFinish = true
+                                autoConnectAfterFinish =
+                                    true
                             )
 
                         toast(
@@ -1749,14 +2005,17 @@ class MainActivity :
                     60L
             }
 
-        MmkvManager.encodeSubscription(
-            subId,
-            subscription
-        )
+        MmkvManager
+            .encodeSubscription(
+                subId,
+                subscription
+            )
 
-        SubscriptionUpdater.syncOne(
-            subId = subId
-        )
+        SubscriptionUpdater
+            .syncOne(
+                subId =
+                    subId
+            )
 
         handleNewMojAzadSubscription(
             subId
@@ -1769,7 +2028,9 @@ class MainActivity :
             View.GONE
 
         val input =
-            AppCompatEditText(this).apply {
+            AppCompatEditText(
+                this
+            ).apply {
 
                 hint =
                     "لینک اشتراک موج آزاد"
@@ -1784,7 +2045,9 @@ class MainActivity :
             }
 
         val dialog =
-            AlertDialog.Builder(this)
+            AlertDialog.Builder(
+                this
+            )
                 .setTitle(
                     "فعال‌سازی MojAzad"
                 )
@@ -1900,7 +2163,8 @@ class MainActivity :
 
                                 SubscriptionUpdater
                                     .syncOne(
-                                        subId = subId
+                                        subId =
+                                            subId
                                     )
 
                                 withContext(
@@ -2001,7 +2265,8 @@ class MainActivity :
 
     private fun refreshMojAzadSubscription() {
 
-        SubscriptionUpdater.sync()
+        SubscriptionUpdater
+            .sync()
 
         showLoading()
 
@@ -2033,10 +2298,6 @@ class MainActivity :
                             true
                         )
 
-                        /*
-                         * Header values have already been saved
-                         * by AngConfigManager at this point.
-                         */
                         updateSubscriptionUsage()
 
                         mainViewModel
@@ -2110,41 +2371,42 @@ class MainActivity :
                 this
             )
 
-        onBackPressedDispatcher.addCallback(
-            this,
-            object :
-                OnBackPressedCallback(
-                    true
-                ) {
-
-                override fun handleOnBackPressed() {
-
-                    if (
-                        binding.drawerLayout
-                            .isDrawerOpen(
-                                GravityCompat.START
-                            )
+        onBackPressedDispatcher
+            .addCallback(
+                this,
+                object :
+                    OnBackPressedCallback(
+                        true
                     ) {
 
-                        binding.drawerLayout
-                            .closeDrawer(
-                                GravityCompat.START
-                            )
+                    override fun handleOnBackPressed() {
 
-                    } else {
+                        if (
+                            binding.drawerLayout
+                                .isDrawerOpen(
+                                    GravityCompat.START
+                                )
+                        ) {
 
-                        isEnabled =
-                            false
+                            binding.drawerLayout
+                                .closeDrawer(
+                                    GravityCompat.START
+                                )
 
-                        onBackPressedDispatcher
-                            .onBackPressed()
+                        } else {
 
-                        isEnabled =
-                            true
+                            isEnabled =
+                                false
+
+                            onBackPressedDispatcher
+                                .onBackPressed()
+
+                            isEnabled =
+                                true
+                        }
                     }
                 }
-            }
-        )
+            )
     }
 
     private fun setupNavigationVersion() {
@@ -2442,8 +2704,10 @@ class MainActivity :
         }
 
         applyRunningState(
-            isLoading = true,
-            isRunning = false
+            isLoading =
+                true,
+            isRunning =
+                false
         )
 
         if (
@@ -2526,9 +2790,10 @@ class MainActivity :
         if (
             Build.VERSION.SDK_INT >=
             Build.VERSION_CODES.CINNAMON_BUN &&
-            MmkvManager.decodeSettingsBool(
-                AppConfig.PREF_PROXY_SHARING
-            )
+            MmkvManager
+                .decodeSettingsBool(
+                    AppConfig.PREF_PROXY_SHARING
+                )
         ) {
 
             checkAndRequestPermission(
@@ -2594,10 +2859,11 @@ class MainActivity :
             binding.fab
                 .backgroundTintList =
                 ColorStateList.valueOf(
-                    ContextCompat.getColor(
-                        this,
-                        R.color.md_theme_primary
-                    )
+                    ContextCompat
+                        .getColor(
+                            this,
+                            R.color.md_theme_primary
+                        )
                 )
 
             binding.fab
@@ -2619,10 +2885,11 @@ class MainActivity :
             binding.fab
                 .backgroundTintList =
                 ColorStateList.valueOf(
-                    ContextCompat.getColor(
-                        this,
-                        R.color.color_fab_active
-                    )
+                    ContextCompat
+                        .getColor(
+                            this,
+                            R.color.color_fab_active
+                        )
                 )
 
             binding.fab
@@ -2644,10 +2911,11 @@ class MainActivity :
             binding.fab
                 .backgroundTintList =
                 ColorStateList.valueOf(
-                    ContextCompat.getColor(
-                        this,
-                        R.color.color_fab_inactive
-                    )
+                    ContextCompat
+                        .getColor(
+                            this,
+                            R.color.color_fab_inactive
+                        )
                 )
 
             binding.fab
@@ -2705,7 +2973,8 @@ class MainActivity :
             )
 
         if (
-            searchItem != null
+            searchItem !=
+            null
         ) {
 
             val searchView =
@@ -2983,9 +3252,10 @@ class MainActivity :
 
             else ->
 
-                super.onOptionsItemSelected(
-                    item
-                )
+                super
+                    .onOptionsItemSelected(
+                        item
+                    )
         }
 
     private fun importManually(
@@ -3304,8 +3574,8 @@ class MainActivity :
 
                 if (
                     result.successCount +
-                    result.failureCount +
-                    result.skipCount ==
+                        result.failureCount +
+                        result.skipCount ==
                     0
                 ) {
 
@@ -3318,7 +3588,7 @@ class MainActivity :
                     result.successCount >
                     0 &&
                     result.failureCount +
-                    result.skipCount ==
+                        result.skipCount ==
                     0
                 ) {
 
@@ -3407,7 +3677,9 @@ class MainActivity :
 
     private fun delAllConfig() {
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(
+            this
+        )
             .setMessage(
                 R.string.del_config_comfirm
             )
@@ -3457,7 +3729,9 @@ class MainActivity :
 
     private fun delDuplicateConfig() {
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(
+            this
+        )
             .setMessage(
                 R.string.del_config_comfirm
             )
@@ -3505,7 +3779,9 @@ class MainActivity :
 
     private fun delInvalidConfig() {
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(
+            this
+        )
             .setMessage(
                 R.string
                     .del_invalid_config_comfirm
@@ -3767,48 +4043,53 @@ class MainActivity :
 
             R.id.sub_setting ->
 
-                requestSubSettingLauncher.launch(
-                    Intent(
-                        this,
-                        SubSettingActivity::class.java
+                requestSubSettingLauncher
+                    .launch(
+                        Intent(
+                            this,
+                            SubSettingActivity::class.java
+                        )
                     )
-                )
 
             R.id.per_app_proxy_settings ->
 
-                requestActivityLauncher.launch(
-                    Intent(
-                        this,
-                        PerAppProxyActivity::class.java
+                requestActivityLauncher
+                    .launch(
+                        Intent(
+                            this,
+                            PerAppProxyActivity::class.java
+                        )
                     )
-                )
 
             R.id.routing_setting ->
 
-                requestActivityLauncher.launch(
-                    Intent(
-                        this,
-                        RoutingSettingActivity::class.java
+                requestActivityLauncher
+                    .launch(
+                        Intent(
+                            this,
+                            RoutingSettingActivity::class.java
+                        )
                     )
-                )
 
             R.id.user_asset_setting ->
 
-                requestActivityLauncher.launch(
-                    Intent(
-                        this,
-                        UserAssetActivity::class.java
+                requestActivityLauncher
+                    .launch(
+                        Intent(
+                            this,
+                            UserAssetActivity::class.java
+                        )
                     )
-                )
 
             R.id.settings ->
 
-                requestActivityLauncher.launch(
-                    Intent(
-                        this,
-                        SettingsActivity::class.java
+                requestActivityLauncher
+                    .launch(
+                        Intent(
+                            this,
+                            SettingsActivity::class.java
+                        )
                     )
-                )
 
             R.id.promotion ->
 
@@ -3843,12 +4124,13 @@ class MainActivity :
 
             R.id.backup_restore ->
 
-                requestActivityLauncher.launch(
-                    Intent(
-                        this,
-                        BackupActivity::class.java
+                requestActivityLauncher
+                    .launch(
+                        Intent(
+                            this,
+                            BackupActivity::class.java
+                        )
                     )
-                )
 
             R.id.about ->
 
