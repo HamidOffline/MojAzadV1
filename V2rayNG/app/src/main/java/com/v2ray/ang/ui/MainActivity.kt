@@ -397,8 +397,8 @@ class MainActivity :
      * MojAzad Theme
      * =========================================================
      */
-private fun setupToolbarGlassActions() {
-private fun setupToolbarGlassActions() {
+        
+        private fun setupToolbarGlassActions() {
 
     binding.toolbar.post {
 
